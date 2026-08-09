@@ -29,6 +29,51 @@ describe("cookie mutation request checks", () => {
     expect(isSameRequestOrigin(request)).toBe(true);
   });
 
+  it("accepts a user-activated same-origin form navigation with an opaque origin", () => {
+    const request = new Request("https://www.xn--wnschi-3ya.de/api/mats/access", {
+      method: "POST",
+      headers: {
+        Origin: "null",
+        "Sec-Fetch-Site": "same-origin",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-User": "?1",
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+    });
+
+    expect(isSameRequestOrigin(request)).toBe(true);
+  });
+
+  it("rejects an opaque origin from a cross-site form navigation", () => {
+    const request = new Request("https://www.xn--wnschi-3ya.de/api/mats/access", {
+      method: "POST",
+      headers: {
+        Origin: "null",
+        "Sec-Fetch-Site": "cross-site",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-User": "?1",
+      },
+    });
+
+    expect(isSameRequestOrigin(request)).toBe(false);
+  });
+
+  it("rejects an opaque same-origin request without a user-activated document navigation", () => {
+    const request = new Request("https://www.xn--wnschi-3ya.de/api/mats/access", {
+      method: "POST",
+      headers: {
+        Origin: "null",
+        "Sec-Fetch-Site": "same-origin",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Dest": "empty",
+      },
+    });
+
+    expect(isSameRequestOrigin(request)).toBe(false);
+  });
+
   it("rejects an external origin even when a browser header is forged", () => {
     process.env.APP_ORIGIN = "https://listen.example";
     const request = new Request("https://listen.example/api/app/wishlists", {
