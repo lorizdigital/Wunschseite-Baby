@@ -11,7 +11,7 @@ Die klare Architekturentscheidung lautet:
 - Jede Familie erhält einen eigenen Datensatz in `wishlists`.
 - Die Trennung erfolgt über `wishlist_id`, Mitgliedschaften und Supabase Row Level Security (RLS).
 - Die bestehende Mats-Liste wird weder kopiert noch neu erstellt.
-- Die bisherige öffentliche Seite unter `/` bleibt erhalten.
+- Mats bleibt als getrennte Legacy-Liste unter `/mats` erreichbar; `/` wird die Wünschi-Startseite für Eltern.
 - Die Entwicklung beginnt erst auf Grundlage dieses Plans.
 
 ## Unveränderliche Anforderungen für Mats
@@ -27,7 +27,7 @@ Folgende Bestandsdaten müssen unverändert erhalten bleiben:
 - Passwort-Hashes und Reservierungszeitpunkte
 - Bildadressen und Storage-Objekte
 - GoWish-Quellinformationen
-- bisheriger öffentlicher Pfad `/`
+- eigener öffentlicher Pfad `/mats`
 - bestehende Reservierungs- und Freigabefunktion
 
 Referenzbestand zum Zeitpunkt der Planung:
@@ -244,7 +244,8 @@ Nicht protokollieren:
 
 | Route | Zweck |
 |---|---|
-| `/` | bestehende Mats-Seite |
+| `/` | Wünschi-Startseite mit Einstieg in den Elternbereich |
+| `/mats` | bestehende Mats-Legacy-Seite |
 | `/admin` | Übergangsweise Mats-Verwaltung |
 | `/w/[publicSlug]` | öffentliche Liste einer Familie |
 | `/app` | Übersicht eigener Listen |
@@ -254,7 +255,7 @@ Nicht protokollieren:
 | `/api/public/wishlists/[slug]/reservations` | Reservieren und Freigeben |
 | `/api/app/wishlists/[id]/...` | authentifizierte Verwaltung |
 
-Die Root-Route `/` löst weiterhin ausdrücklich Mats’ bestehende UUID auf. Sie darf nicht über einen veränderbaren Slug oder eine allgemeine Fallback-Logik von anderen Listen abhängen.
+Die Route `/mats` löst ausdrücklich Mats’ bestehende UUID auf. Sie darf nicht über einen veränderbaren Slug oder eine allgemeine Fallback-Logik von anderen Listen abhängen. Die Root-Route `/` enthält niemals Mats-Daten.
 
 Unbekannte Slugs liefern 404. Eine Datenbankstörung oder ein unbekannter Slug darf niemals Mats als Fallback für eine fremde Liste anzeigen.
 
@@ -318,7 +319,7 @@ Aufgaben:
 - Bildreferenzen nach lokalen Pfaden, Supabase-Objekten und externen URLs einordnen.
 - Wunsch- und Reservierungsfelder per SHA-256-Fingerprint dokumentieren.
 - Statusverteilung der neun Reservierungsdatensätze festhalten.
-- Screenshots und E2E-Baseline für `/` und `/admin` erstellen.
+- Screenshots und E2E-Baseline für `/mats` und `/admin` erstellen.
 - getrennte Entwicklungs-, Staging- und Produktionsumgebung festlegen.
 
 Wichtig: Ein Datenbankbackup sichert nicht automatisch die eigentlichen Storage-Dateien.
@@ -382,7 +383,7 @@ Abnahme:
 - Status einer Liste enthält keine Wunsch-ID einer anderen Liste.
 - Slug A mit Wunsch-ID B wird abgewiesen.
 - parallele Reservierungen ergeben genau einen Erfolg.
-- `/` lädt weiterhin ausdrücklich Mats.
+- `/mats` lädt weiterhin ausdrücklich Mats.
 
 ### Phase 3 – Supabase Auth, Mitgliedschaften und RLS
 
@@ -410,7 +411,7 @@ Aufgaben:
 
 - `/w/[publicSlug]` implementieren.
 - Titel, Einleitung, Branding und Metadaten dynamisch machen.
-- Mats-spezifische Texte ausschließlich für die Mats-Root verwenden.
+- Mats-spezifische Texte ausschließlich für die Mats-Seite verwenden.
 - öffentliche Status- und Reservierungsendpunkte auf den Slug begrenzen.
 - Slug-Rotation ermöglichen.
 - archivierte Listen mit 404 oder 410 beantworten.
@@ -571,7 +572,8 @@ Erwartete Ergebnisse:
 
 ### Mats-Regressionsabnahme
 
-- `/` sieht aus wie vor der Erweiterung.
+- `/` zeigt die Wünschi-Startseite ohne Mats-Daten.
+- `/mats` zeigt Mats’ vollständige Bestandsliste.
 - Reservieren funktioniert weiterhin.
 - Freigeben bestehender Reservierungen funktioniert weiterhin.
 - `/admin` funktioniert während der Übergangsphase.
@@ -635,7 +637,7 @@ Ein kleineres Zwischenziel, bei dem neue Familien zunächst manuell angelegt wer
 - Reservierung weiterhin mit Gastname und Passwort
 - Gastname für andere Gäste und standardmäßig auch für Eltern nicht sichtbar
 - zunächst nur Produktbilder, keine persönlichen Babyfotos
-- Mats bleibt dauerhaft unter `/` erreichbar
+- Mats bleibt dauerhaft unter `/mats` erreichbar
 
 ## Vor Entwicklungsbeginn zu bestätigende Produktentscheidungen
 

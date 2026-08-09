@@ -1,6 +1,6 @@
 import "server-only";
 
-import { wishlist as fallbackWishlist, wishes as fallbackWishes, type ArtworkKind, type Wish } from "@/data/wishes";
+import type { ArtworkKind, Wish } from "@/data/wishes";
 import { getSupabaseAdmin, MATS_WISHLIST_ID } from "@/lib/supabase-admin";
 
 const artworks: ArtworkKind[] = ["bag", "towel", "thermometer", "monitor", "mobile", "nailfile", "pram", "blanket"];
@@ -49,16 +49,20 @@ function mapWishes(rows: Record<string, unknown>[]): Wish[] {
   }));
 }
 
-export async function getMatsWishlistPageData(): Promise<WishlistPageData> {
+export async function getMatsWishlistPageData(): Promise<WishlistPageData | null> {
   const supabase = getSupabaseAdmin();
-  if (!supabase) return { wishlist: fallbackWishlist, wishes: fallbackWishes };
+  if (!supabase) return null;
 
   const { data, error } = await supabase.rpc("get_published_wishlist_page_v1", { p_wishlist_id: MATS_WISHLIST_ID });
   const list = Array.isArray(data) ? data[0] as PublicWishlistPageRow | undefined : undefined;
-  if (error || !list || !Array.isArray(list.wishes)) return { wishlist: fallbackWishlist, wishes: fallbackWishes };
+  if (error || !list || !Array.isArray(list.wishes)) return null;
 
   return {
-    wishlist: { ...fallbackWishlist, title: list.title, intro: list.intro || fallbackWishlist.intro },
+    wishlist: {
+      title: list.title,
+      intro: list.intro || "Unsere Baby-Wunschliste",
+      note: "Reserviere einen Wunsch, damit sich niemand doppelt darum kümmert.",
+    },
     wishes: mapWishes(list.wishes),
   };
 }

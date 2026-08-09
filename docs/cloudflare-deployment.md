@@ -36,9 +36,9 @@ Die lokale `.dev.vars` darf nicht eingecheckt werden.
 
 Die beiden `NEXT_PUBLIC_`-Werte werden beim Next.js-Build in den Browser-Code eingebettet. Sie müssen deshalb bereits während des OpenNext-Builds verfügbar sein; reine Wrangler-Laufzeitvariablen reichen dafür nicht aus.
 
-## 3. Staging-Variablen im Cloudflare-Worker
+## 3. Worker-Variablen in Staging und Produktion
 
-Für das erste Deployment das getrennte Supabase-Staging verwenden. In Cloudflare müssen Variablen und Secrets für den Build beziehungsweise die Laufzeit konfiguriert werden:
+In Cloudflare müssen Variablen und Secrets für den Build beziehungsweise die Laufzeit konfiguriert werden:
 
 ```text
 NEXT_PUBLIC_SUPABASE_URL
@@ -68,16 +68,20 @@ LEGACY_MATS_ADMIN_ENABLED=true
 
 `NEXT_PUBLIC_SUPABASE_URL` und `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` müssen bereits beim Cloudflare-Build vorhanden sein. Der Supabase-Secret-Key und alle übrigen Secrets dürfen nie mit `NEXT_PUBLIC_` beginnen.
 
-## 4. Supabase Auth für Staging
+Für Produktion müssen URL, Publishable Key, serverseitiger Secret Key und `ADMIN_IMPORT_SECRET` aus dem Produktionsprojekt stammen. `APP_ORIGIN` ist `https://wünschi.de`; die Flags für den geschlossenen Start sind `MULTI_WISHLIST_ENABLED=true`, `SELF_SERVICE_SIGNUP_ENABLED=false`, `PUBLICATION_ENABLED=true`, `PRODUCT_IMPORT_ENABLED=false` und `LEGACY_MATS_ADMIN_ENABLED=true`.
 
-In Supabase unter **Authentication → URL Configuration** eintragen:
+## 4. Supabase Auth
+
+Für Staging den jeweiligen Worker-Host eintragen. Für Produktion unter **Authentication → URL Configuration** eintragen:
 
 ```text
 Site URL:
-https://<staging-worker-domain>
+https://wünschi.de
 
-Additional Redirect URL:
-https://<staging-worker-domain>/auth/callback
+Redirect URLs:
+https://wünschi.de/auth/callback
+https://www.wünschi.de/auth/callback
+https://wuenschi.lino-loriz.workers.dev/auth/callback
 ```
 
 Zusätzlich muss der Magic-Link-E-Mail-Versand eingerichtet und getestet werden.
@@ -92,7 +96,7 @@ Vor der Produktion mindestens diese Abläufe testen:
 4. Liste veröffentlichen und öffentliche URL öffnen.
 5. Öffentliche Reservierung und Stornierung testen.
 6. Einladung an eine zweite E-Mail-Adresse annehmen.
-7. Mats-Legacy-Seite unter `/` und `/admin` auf unveränderte Funktion prüfen.
+7. Mats-Legacy-Seite unter `/mats` und `/admin` auf unveränderte Funktion prüfen.
 
 Die vollständige Staging-Abnahme steht in [staging-acceptance.md](staging-acceptance.md).
 
@@ -101,16 +105,16 @@ Die vollständige Staging-Abnahme steht in [staging-acceptance.md](staging-accep
 Erst nach bestandener Staging-Abnahme den Worker mit der Custom Domain verbinden. Danach Produktionswerte setzen:
 
 ```text
-APP_ORIGIN=https://xn--wnschi-3ya.de
+APP_ORIGIN=https://wünschi.de
 ```
 
 In Supabase für die Produktion die exakte Callback-URL ergänzen:
 
 ```text
-https://xn--wnschi-3ya.de/auth/callback
+https://wünschi.de/auth/callback
 ```
 
-Die Produktionsmigrationen dürfen erst nach Backup, Mats-Baseline und bestandener Staging-Abnahme ausgeführt werden. Die bestehenden Mats-Daten müssen anschließend erneut gegen die Baseline geprüft werden.
+Die Produktionsmigrationen dürfen erst nach Backup, Mats-Baseline und bestandener Staging-Abnahme ausgeführt werden. Die bestehenden Mats-Daten müssen anschließend erneut gegen die Baseline geprüft werden. Dieser Abgleich wurde am 9. August 2026 erfolgreich durchgeführt: 30 Wünsche, 9 Reservierungen und alle relevanten Fingerprints sind unverändert.
 
 ## 7. Deployment-Befehle
 

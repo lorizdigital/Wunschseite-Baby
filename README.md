@@ -1,6 +1,6 @@
 # Wünschi
 
-Wünschi ist eine warme, private Wunschlisten-Anwendung für werdende Familien. Die offizielle Domain ist [wünschi.de](https://wünschi.de). Mats’ bestehende Liste bleibt unter `/` unverändert erreichbar; die Mehrlistenfunktion liegt getrennt unter `/app` und wird über Feature-Flags kontrolliert freigeschaltet.
+Wünschi ist eine warme, private Wunschlisten-Anwendung für werdende Familien. Die offizielle Domain ist [wünschi.de](https://wünschi.de). Die öffentliche Root-Adresse `/` ist die Wünschi-Startseite mit Einstieg in den Elternbereich. Mats’ bestehende, vollständige Liste liegt getrennt unter `/mats`; die Mehrlistenverwaltung liegt unter `/app`.
 
 ## Projektidentität
 
@@ -12,7 +12,7 @@ Wünschi ist eine warme, private Wunschlisten-Anwendung für werdende Familien. 
 
 Die zentrale technische Quelle für diese Werte ist [src/lib/brand.ts](src/lib/brand.ts). Für lokale Entwicklung bleibt `APP_ORIGIN` auf `http://localhost:3000`; im öffentlichen Betrieb muss es auf `https://wünschi.de` gesetzt werden.
 
-**Wichtig:** Die Mehrlisten-Migrationen wurden gegen das getrennte Supabase-Staging ausgeführt und dort mit dem automatisierten Abnahmetest geprüft. Gegen Mats’ Produktionsprojekt wurde keine Mehrlisten-Migration ausgeführt. Vor einem produktiven `db push` gilt weiterhin zwingend die sichere Reihenfolge in diesem Dokument und in [docs/staging-acceptance.md](docs/staging-acceptance.md).
+**Produktionsstand, 9. August 2026:** Die Mehrlisten-Migrationen wurden nach Staging-Abnahme in Mats’ Produktionsprojekt eingespielt. Direkt davor und danach wurden Mats’ 30 Wünsche, 9 Reservierungen und die zugehörigen Fingerprints erfolgreich abgeglichen. Die Startseite und der Elternbereich verwenden dieselbe Produktionsdatenbank.
 
 ## Funktionsumfang
 
@@ -31,7 +31,7 @@ npm install
 npm run dev
 ```
 
-Ohne Supabase-Konfiguration läuft ausschließlich Mats’ öffentliche Liste im lokalen Demo-Modus. Dieser speichert Reservierungen nur im Arbeitsspeicher. Die neue Elternverwaltung benötigt eine Supabase-Verbindung und einen Publishable Key.
+Ohne Supabase-Konfiguration bleibt nur die Wünschi-Startseite verfügbar. Die Mats-Seite verwendet bewusst keine Beispieldaten als Ersatz: Sie benötigt eine funktionierende Supabase-Verbindung. Die Elternverwaltung benötigt zusätzlich einen Publishable Key.
 
 Prüfbefehle:
 
@@ -69,9 +69,9 @@ npm run build
 3. **Staging isolieren.** Ein separates Supabase-Projekt mit eigener Auth- und Storage-Umgebung verwenden.
 4. **Migrationen zuerst in Staging prüfen.** `npx supabase db push --dry-run`, dann `npx supabase db push`; anschließend jeden Fall aus [docs/staging-acceptance.md](docs/staging-acceptance.md) mit zwei Testkonten durchführen.
 5. **Staging abnehmen.** RLS, Rollen, Einladungen, parallele Reservierungen, Datenlöschung und Mats-Regression müssen bestanden sein.
-6. **Erst dann Produktion migrieren.** Mit frischem Backup und vorab dokumentierten Mats-Fingerprints. Die Migrationen sind additiv; Mats wird nicht automatisch einem Konto zugeordnet.
+6. **Produktion migrieren.** Dies wurde am 9. August 2026 nach frischem, lokal geschütztem Datenexport und Baseline-Abgleich durchgeführt. Die Migrationen sind additiv; Mats wurde keinem Elternkonto zugeordnet.
 7. **Geschlossen starten.** `MULTI_WISHLIST_ENABLED=true`, aber Selbstregistrierung, Veröffentlichung und Produktimport zunächst bewusst über die jeweiligen Flags steuern. Neue Testfamilien werden dann ausschließlich über den dokumentierten Provisionierungsweg aufgenommen.
-8. **Mats erst später übernehmen.** Nach einer bestätigten Anmeldung erhält das Elternkonto gezielt die Owner-Mitgliedschaft. `/admin` erst nach nachgewiesener Regression mit `LEGACY_MATS_ADMIN_ENABLED=false` abschalten.
+8. **Mats getrennt halten.** Die vollständige Bestandsliste bleibt unter `/mats`; `/admin` bleibt ihr separater Legacy-Verwaltungsweg. Eine spätere Übernahme in ein Elternkonto erfordert eine ausdrückliche Entscheidung.
 
 Ein Anwendungsrollback erfolgt über Flags und ein vorheriges Deployment. Nach der Anlage neuer Familienlisten dürfen Tabellen oder Spalten nicht per Down-Migration gelöscht werden; Fehler werden per Forward-Fix behoben.
 
