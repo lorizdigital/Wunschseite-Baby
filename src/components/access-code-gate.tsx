@@ -12,9 +12,13 @@ export function AccessCodeGate({ action, state }: { action: string; state?: stri
   const [codeVisible, setCodeVisible] = useState(false);
   const message = state === "rate"
     ? "Bitte warte einen Moment, bevor du es erneut versuchst."
-    : state === "invalid"
-      ? "Der Zugangscode ist nicht richtig."
-      : null;
+    : state === "request"
+      ? "Die Anfrage konnte nicht sicher bestätigt werden. Bitte lade die Seite neu und versuche es erneut."
+      : state === "unavailable"
+        ? "Der Zugang ist vorübergehend nicht verfügbar. Bitte versuche es später erneut."
+        : state === "invalid"
+          ? "Der Zugangscode ist nicht richtig."
+          : null;
 
   return <main className="access-code-page"><section className="access-code-card">
     <p className="eyebrow">Private Wunschliste</p>
