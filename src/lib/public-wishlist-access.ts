@@ -125,7 +125,9 @@ export function grantMatsAccess(accessCode: string) {
   const secret = getSessionSecret();
   if (!expectedCode || !version || !secret) return null;
 
-  const expected = createHmac("sha256", secret).update(`mats-access:${expectedCode}`).digest();
+  // Cloudflare secrets can be populated from a terminal or a copied value. A
+  // trailing line break must not make an otherwise correct access code fail.
+  const expected = createHmac("sha256", secret).update(`mats-access:${expectedCode.trim()}`).digest();
   const received = createHmac("sha256", secret).update(`mats-access:${accessCode.trim()}`).digest();
   if (expected.length !== received.length || !timingSafeEqual(expected, received)) return null;
   return createGrant("mats", version);
