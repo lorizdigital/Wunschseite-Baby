@@ -8,7 +8,7 @@ function EyeIcon({ visible }: { visible: boolean }) {
     : <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M2.3 12a1.8 1.8 0 0 1 0-1.7C3.2 8.1 6.8 3 12 3s8.8 5.1 9.7 7.3a1.8 1.8 0 0 1 0 1.7C20.8 20 17.2 21 12 21S3.2 15.9 2.3 13.7a1.8 1.8 0 0 1 0-1.7Z" /><circle cx="12" cy="12" r="3" /></svg>;
 }
 
-export function AccessCodeGate({ action, state }: { action: string; state?: string }) {
+export function AccessCodeGate({ action, requestToken, state }: { action: string; requestToken: string; state?: string }) {
   const [codeVisible, setCodeVisible] = useState(false);
   const message = state === "rate"
     ? "Bitte warte einen Moment, bevor du es erneut versuchst."
@@ -25,6 +25,7 @@ export function AccessCodeGate({ action, state }: { action: string; state?: stri
     <h1>Diese Liste ist geschützt.</h1>
     <p>Bitte frage die Eltern nach dem Zugangscode. Link und Code werden am besten getrennt geteilt.</p>
     <form className="login-form" action={action} method="post">
+      <input type="hidden" name="requestToken" value={requestToken} />
       <label className="field-label" htmlFor="access-code">Zugangscode</label>
       <div className="secret-input">
         <input className="text-field" id="access-code" name="accessCode" type={codeVisible ? "text" : "password"} required minLength={8} maxLength={64} autoComplete="off" />

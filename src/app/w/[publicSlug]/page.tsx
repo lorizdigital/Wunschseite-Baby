@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { WishlistExperience } from "@/components/wishlist-experience";
 import { AccessCodeGate } from "@/components/access-code-gate";
 import { isFeatureEnabled } from "@/lib/app-config";
+import { createAccessFormToken } from "@/lib/access-form-token";
 import { PRODUCT_NAME } from "@/lib/brand";
 import { getPublicWishlistPageData } from "@/lib/wishlist-data";
 import { hasPublicWishlistAccess } from "@/lib/public-wishlist-access";
@@ -23,7 +24,10 @@ export default async function PublicWishlistPage({ params, searchParams }: Publi
   if (!isFeatureEnabled("MULTI_WISHLIST_ENABLED")) notFound();
   const { publicSlug } = await params;
   const { access } = await searchParams;
-  if (!await hasPublicWishlistAccess(publicSlug)) return <AccessCodeGate action={`/api/public/wishlists/${encodeURIComponent(publicSlug)}/access`} state={access} />;
+  if (!await hasPublicWishlistAccess(publicSlug)) {
+    const requestToken = createAccessFormToken(publicSlug);
+    return <AccessCodeGate action={`/api/public/wishlists/${encodeURIComponent(publicSlug)}/access`} requestToken={requestToken ?? ""} state={requestToken ? access : "unavailable"} />;
+  }
   const data = await getPublicWishlistPageData(publicSlug);
   if (!data) notFound();
 
