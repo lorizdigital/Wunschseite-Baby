@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function NewWishlistPage() {
   const auth = await getAuthenticatedSupabaseUser();
-  if (!auth) redirect("/login");
+  if (!auth) redirect("/login?next=/neu");
 
   const selfServiceEnabled = isFeatureEnabled("SELF_SERVICE_SIGNUP_ENABLED");
   return <main className="admin-page"><div className="admin-wrap">

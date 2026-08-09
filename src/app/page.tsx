@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PRODUCT_NAME } from "@/lib/brand";
+import { isFeatureEnabled } from "@/lib/app-config";
 
 // The root page is deliberately request-rendered so a deployment replaces the
 // previous landing page immediately instead of retaining an old static page
@@ -7,6 +8,7 @@ import { PRODUCT_NAME } from "@/lib/brand";
 export const dynamic = "force-dynamic";
 
 export default function Home() {
+  const selfServiceEnabled = isFeatureEnabled("SELF_SERVICE_SIGNUP_ENABLED");
   return (
     <main className="landing-page">
       <header className="landing-header">
@@ -14,7 +16,7 @@ export default function Home() {
           <span className="landing-brand-mark" aria-hidden="true">♡</span>
           <span>{PRODUCT_NAME}</span>
         </Link>
-        <Link className="landing-login-link" href="/login">Anmelden</Link>
+        <Link className="landing-login-link" href="/login">{selfServiceEnabled ? "Loslegen" : "Anmelden"}</Link>
       </header>
 
       <section className="landing-hero">
@@ -23,8 +25,8 @@ export default function Home() {
           <h1>Wünsche teilen.<br />Freude schenken.</h1>
           <p>Mit Wünschi erstellt ihr eine persönliche Wunschliste, teilt sie nur mit euren Liebsten und vermeidet doppelte Geschenke.</p>
           <div className="landing-actions">
-            <Link className="landing-primary-action" href="/login">Zum Elternbereich</Link>
-            <p>Du bist bereits eingeladen? Melde dich mit deiner E-Mail-Adresse an.</p>
+            <Link className="landing-primary-action" href="/login">{selfServiceEnabled ? "Wunschliste erstellen" : "Zum Elternbereich"}</Link>
+            <p>{selfServiceEnabled ? "Kostenlos mit deiner E-Mail-Adresse starten." : "Du bist bereits eingeladen? Melde dich mit deiner E-Mail-Adresse an."}</p>
           </div>
         </div>
         <div className="landing-art" aria-hidden="true">
@@ -43,7 +45,7 @@ export default function Home() {
         <div>
           <article><span>1</span><h3>Einloggen</h3><p>Eltern verwalten ihre Wunschlisten geschützt in ihrem persönlichen Bereich.</p></article>
           <article><span>2</span><h3>Liste gestalten</h3><p>Wünsche hinzufügen, sortieren und mit den wichtigsten Details versehen.</p></article>
-          <article><span>3</span><h3>Privat teilen</h3><p>Ihr entscheidet selbst, wann eure Liste über einen persönlichen Link sichtbar wird.</p></article>
+          <article><span>3</span><h3>Privat teilen</h3><p>Ihr entscheidet selbst, wann eure Liste über einen persönlichen Link und Zugangscode sichtbar wird.</p></article>
         </div>
       </section>
 

@@ -54,6 +54,7 @@ export async function getAuthenticatedSupabaseUser() {
 
 export function getSafeAuthNext(value: string | null | undefined) {
   if (value === "/app") return "/app";
+  if (value === "/neu") return "/neu";
   if (typeof value === "string" && /^\/einladung\/[A-Za-z0-9_-]{32,512}$/.test(value)) return value;
   return "/app";
 }

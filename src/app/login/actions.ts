@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { headers } from "next/headers";
-import { getAppOrigin } from "@/lib/app-config";
+import { getAppOrigin, isFeatureEnabled } from "@/lib/app-config";
 import { consumeRateLimit, getRequestClientKey } from "@/lib/rate-limit";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { getAuthCallbackUrl, getSafeAuthNext, createSupabaseUserClient } from "@/lib/supabase-user";
@@ -43,18 +43,16 @@ export async function requestMagicLink(_previous: LoginState, formData: FormData
   const supabase = await createSupabaseUserClient();
   if (!supabase) return { error: "Die Anmeldung ist noch nicht eingerichtet." };
 
-  await provisionPendingInviteAccount(parsed.data.email);
+  const selfServiceEnabled = isFeatureEnabled("SELF_SERVICE_SIGNUP_ENABLED");
+  if (!selfServiceEnabled) await provisionPendingInviteAccount(parsed.data.email);
 
   await supabase.auth.signInWithOtp({
     email: parsed.data.email,
     options: {
       emailRedirectTo: getAuthCallbackUrl(getSafeAuthNext(parsed.data.next)),
-      // The closed beta provisions parents before they can sign in. This keeps
-      // the publishable key from becoming a self-service registration path.
-      shouldCreateUser: false,
+      shouldCreateUser: selfServiceEnabled,
     },
   });
 
-  // Do not reveal whether an address already has access to the beta.
-  return { message: "Falls deine E-Mail für die Beta freigeschaltet ist, erhältst du gleich einen Anmeldelink." };
+  return { message: "Falls die E-Mail-Adresse erreichbar ist, erhältst du gleich einen sicheren Anmeldelink." };
 }

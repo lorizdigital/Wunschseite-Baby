@@ -211,6 +211,10 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 
 .cancel-page { align-items: center; background: #e9eee8; display: flex; justify-content: center; min-height: 100vh; padding: 24px; }
 .cancel-card { background: white; border: 1px solid var(--line); border-radius: 24px; box-shadow: 0 24px 80px rgba(39,55,47,.12); max-width: 540px; padding: clamp(34px,7vw,62px); text-align: center; width: 100%; }
+.access-code-page { align-items: center; background: #e9eee8; display: flex; justify-content: center; min-height: 100vh; padding: 24px; }
+.access-code-card { background: white; border: 1px solid var(--line); border-radius: 24px; box-shadow: 0 24px 80px rgba(39,55,47,.12); max-width: 540px; padding: clamp(34px,7vw,62px); width: 100%; }
+.access-code-card h1 { font-family: var(--serif); font-size: clamp(35px,7vw,48px); font-weight: 400; letter-spacing: -.035em; line-height: 1.04; margin: 0; }
+.access-code-card > p:not(.eyebrow):not(.form-error) { color: var(--muted); font-size: 14px; line-height: 1.65; margin: 18px 0 28px; }
 .cancel-icon { align-items: center; background: var(--sage-pale); border-radius: 50%; color: var(--sage); display: inline-flex; font-family: var(--serif); font-size: 42px; height: 76px; justify-content: center; margin-bottom: 24px; width: 76px; }
 .cancel-card h1 { font-family: var(--serif); font-size: clamp(35px,7vw,48px); font-weight: 400; letter-spacing: -.035em; line-height: 1.04; margin: 0; }
 .cancel-card > p:not(.eyebrow):not(.form-error) { color: var(--muted); font-size: 14px; line-height: 1.65; margin: 18px 0 28px; }

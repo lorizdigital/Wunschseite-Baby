@@ -51,6 +51,9 @@ npm run build
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Browser-Schlüssel; alternativ der alte `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Ja für Auth |
 | `SUPABASE_SECRET_KEY` | serverseitiger Supabase-Secret-Key; alternativ `SUPABASE_SERVICE_ROLE_KEY` | Ja für Verwaltungs- und Wartungsrouten |
 | `ADMIN_IMPORT_SECRET` | gemeinsamer, nur serverseitiger Mats-Legacy-Admin-Code | Ja, solange `/admin` genutzt wird |
+| `PUBLIC_WISHLIST_ACCESS_SESSION_SECRET` | signiert die zeitlich begrenzten Zugriffsfreigaben für veröffentlichte Listen | Ja vor Veröffentlichung |
+| `MATS_ACCESS_CODE` | separater Zugangscode für die bestehende Seite `/mats` | Ja, solange `/mats` erreichbar ist |
+| `MATS_ACCESS_CODE_VERSION` | widerruft beim Wechsel des Mats-Codes bisherige Browser-Freigaben | Ja, solange `/mats` erreichbar ist |
 | `APP_ORIGIN` | exakte öffentliche Origin, im Produktivbetrieb `https://wünschi.de` | Ja vor Veröffentlichung |
 | `INTERNAL_CRON_SECRET` | separates Geheimnis für die internen Löschläufe | Ja vor Produktivbetrieb |
 | `INTERNAL_PROVISIONING_SECRET` | separates Geheimnis für die manuelle Aufnahme in die geschlossene Beta | Ja für geschlossene Beta |
@@ -60,7 +63,7 @@ npm run build
 | `PRODUCT_IMPORT_ENABLED` | erlaubt das serverseitige Auslesen von Produktseiten | Nein, standardmäßig `false` |
 | `LEGACY_MATS_ADMIN_ENABLED` | hält den Legacy-Admin als Rückfallweg aktiv | Nein, standardmäßig `true` |
 
-`SUPABASE_SECRET_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_IMPORT_SECRET`, `INTERNAL_CRON_SECRET` und `INTERNAL_PROVISIONING_SECRET` dürfen niemals mit `NEXT_PUBLIC_` beginnen, in den Browser gelangen oder eingecheckt werden.
+`SUPABASE_SECRET_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_IMPORT_SECRET`, `PUBLIC_WISHLIST_ACCESS_SESSION_SECRET`, `MATS_ACCESS_CODE`, `INTERNAL_CRON_SECRET` und `INTERNAL_PROVISIONING_SECRET` dürfen niemals mit `NEXT_PUBLIC_` beginnen, in den Browser gelangen oder eingecheckt werden.
 
 ## Sichere Inbetriebnahme
 
@@ -100,7 +103,7 @@ Die im Produktplan genannte Erinnerung für unbenutzte Entwürfe nach 180 Tagen 
 
 ## Sicherheit und Datenschutz
 
-- Öffentliche Listen sind nicht indexierbar; sie sind dennoch Link-Sharing und kein vollständiger Zugriffsschutz.
+- Veröffentlichte Listen benötigen Link und Zugangscode. Der Code wird nur als bcrypt-Hash gespeichert; erfolgreiche Eingaben erzeugen eine signierte, 30 Tage gültige HttpOnly-Freigabe. Eine Code-Änderung widerruft bestehende Freigaben.
 - Schreibende Routen prüfen Origin und JSON-Requests; Reservierungen haben dauerhafte Rate Limits und Idempotency-Keys.
 - Reservierungspasswörter werden nicht im Klartext gespeichert oder ausgegeben.
 - Produktimporte prüfen Ziel-URL, DNS-Ziel, Weiterleitungen, Dateityp und Größe.

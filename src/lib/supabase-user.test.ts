@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 import { getSafeAuthNext } from "@/lib/supabase-user";
 
 describe("post-login return paths", () => {
-  it("allows only the application dashboard and a well-formed invitation link", () => {
+  it("allows only the application dashboard, first-list setup, and a well-formed invitation link", () => {
     expect(getSafeAuthNext("/app")).toBe("/app");
+    expect(getSafeAuthNext("/neu")).toBe("/neu");
     expect(getSafeAuthNext(`/einladung/${"a".repeat(32)}`)).toBe(`/einladung/${"a".repeat(32)}`);
   });
 

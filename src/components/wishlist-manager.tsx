@@ -117,6 +117,7 @@ export function WishlistManager({
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"editor" | "viewer">("editor");
   const [coOwnerEmail, setCoOwnerEmail] = useState("");
+  const [accessCode, setAccessCode] = useState("");
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [oneTimeInviteUrl, setOneTimeInviteUrl] = useState("");
   const [message, setMessage] = useState("");
@@ -222,8 +223,21 @@ export function WishlistManager({
     try {
       const data = await requestJson<{ publishedAt: string }>(`/api/app/wishlists/${wishlist.id}/publish`, "POST", {});
       setWishlist((current) => ({ ...current, publishedAt: data.publishedAt }));
-      setMessage("Die Liste ist jetzt für Menschen mit dem Link sichtbar.");
+      setMessage("Die Liste ist jetzt für Menschen mit Link und Zugangscode sichtbar.");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Die Liste konnte nicht veröffentlicht werden."); }
+    finally { finish(); }
+  }
+
+  async function saveAccessCode(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    start("access-code");
+    try {
+      const data = await requestJson<{ accessCodeSet: boolean }>(`/api/app/wishlists/${wishlist.id}/access-code`, "POST", { accessCode });
+      if (!data.accessCodeSet) throw new Error("Der Zugangscode konnte nicht gespeichert werden.");
+      setWishlist((current) => ({ ...current, accessCodeSet: true, visibility: "access_code" }));
+      setAccessCode("");
+      setMessage("Der Zugangscode ist gespeichert. Teile ihn getrennt vom Link.");
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Der Zugangscode konnte nicht gespeichert werden."); }
     finally { finish(); }
   }
 
@@ -320,7 +334,9 @@ export function WishlistManager({
 
     {isOwner && <section className="import-panel"><div className="admin-section-head"><div><p className="eyebrow">Liste</p><h2>Deine Worte</h2></div></div><form onSubmit={saveDetails} className="admin-stack"><label className="admin-field">Titel<input value={title} maxLength={180} required disabled={isArchived || pending !== null} onChange={(event) => setTitle(event.target.value)} /></label><label className="admin-field">Einleitung <span>optional</span><textarea value={intro} maxLength={2000} rows={4} disabled={isArchived || pending !== null} onChange={(event) => setIntro(event.target.value)} /></label><div className="admin-form-actions"><button className="primary-button" disabled={isArchived || pending !== null}>{pending === "details" ? "Speichert …" : "Texte speichern"}</button></div></form></section>}
 
-    {isOwner && <section className="import-panel"><div className="admin-section-head"><div><p className="eyebrow">Freigabe</p><h2>Mit Familie teilen</h2></div></div><p>{wishlist.publishedAt && wishlist.publicSlug ? "Deine Liste ist veröffentlicht. Nur Personen mit diesem Link können sie öffnen." : publicationEnabled ? "Prüfe den Auftritt zuerst in der privaten Vorschau. Danach kannst du die Liste mit ihrem persönlichen Link veröffentlichen." : "Die Veröffentlichung ist für diese geschlossene Beta noch nicht freigeschaltet."}</p><div className="admin-form-actions"><a className="secondary-button" href={`/app/lists/${wishlist.id}/preview`} target="_blank" rel="noreferrer">Private Vorschau öffnen</a></div>{wishlist.publishedAt && wishlist.publicSlug && <><div className="share-link-row"><input readOnly value={shareUrl} aria-label="Freigabelink" /><a className="secondary-button" href={`/w/${wishlist.publicSlug}`} target="_blank" rel="noreferrer">Öffnen</a></div><div className="admin-form-actions"><button className="secondary-button" type="button" onClick={() => void rotateLink()} disabled={isArchived || pending !== null}>{pending === "share-link" ? "Erneuert …" : "Link erneuern"}</button></div></>}{publicationEnabled && !wishlist.publishedAt && <div className="admin-form-actions"><button className="primary-button" type="button" disabled={isArchived || pending !== null || activeWishes.length === 0} onClick={() => void publish()}>{pending === "publish" ? "Veröffentlicht …" : "Jetzt veröffentlichen"}</button></div>}{isArchived && <p className="form-error">Diese Liste ist archiviert und kann nicht weiter bearbeitet werden.</p>}</section>}
+    {isOwner && <section className="import-panel"><div className="admin-section-head"><div><p className="eyebrow">Code-Schutz</p><h2>Liste zusätzlich schützen</h2></div></div><p>{wishlist.accessCodeSet ? "Ein Zugangscode ist eingerichtet. Du kannst ihn hier jederzeit durch einen neuen ersetzen; bisherige Freigaben verlieren dann ihre Gültigkeit." : "Lege vor der Veröffentlichung einen Zugangscode mit mindestens 8 Zeichen fest. Teile ihn getrennt vom Link."}</p><form className="import-form" onSubmit={saveAccessCode}><input type="password" required minLength={8} maxLength={64} autoComplete="new-password" value={accessCode} disabled={isArchived || pending !== null} placeholder="Neuen Zugangscode festlegen" onChange={(event) => setAccessCode(event.target.value)} /><button className="secondary-button" disabled={isArchived || pending !== null}>{pending === "access-code" ? "Speichert …" : wishlist.accessCodeSet ? "Code ändern" : "Code speichern"}</button></form></section>}
+
+    {isOwner && <section className="import-panel"><div className="admin-section-head"><div><p className="eyebrow">Freigabe</p><h2>Mit Familie teilen</h2></div></div><p>{wishlist.publishedAt && wishlist.publicSlug ? "Deine Liste ist veröffentlicht. Zum Öffnen werden Link und Zugangscode benötigt." : publicationEnabled ? "Prüfe den Auftritt zuerst in der privaten Vorschau. Danach kannst du die Liste mit ihrem persönlichen Link und Zugangscode veröffentlichen." : "Die Veröffentlichung ist für diese geschlossene Beta noch nicht freigeschaltet."}</p><div className="admin-form-actions"><a className="secondary-button" href={`/app/lists/${wishlist.id}/preview`} target="_blank" rel="noreferrer">Private Vorschau öffnen</a></div>{wishlist.publishedAt && wishlist.publicSlug && <><div className="share-link-row"><input readOnly value={shareUrl} aria-label="Freigabelink" /><a className="secondary-button" href={`/w/${wishlist.publicSlug}`} target="_blank" rel="noreferrer">Öffnen</a></div><div className="admin-form-actions"><button className="secondary-button" type="button" onClick={() => void rotateLink()} disabled={isArchived || pending !== null}>{pending === "share-link" ? "Erneuert …" : "Link erneuern"}</button></div></>}{publicationEnabled && !wishlist.publishedAt && <div className="admin-form-actions"><button className="primary-button" type="button" disabled={isArchived || pending !== null || activeWishes.length === 0 || !wishlist.accessCodeSet} onClick={() => void publish()}>{pending === "publish" ? "Veröffentlicht …" : wishlist.accessCodeSet ? "Jetzt veröffentlichen" : "Zuerst Zugangscode festlegen"}</button></div>}{isArchived && <p className="form-error">Diese Liste ist archiviert und kann nicht weiter bearbeitet werden.</p>}</section>}
 
     {!isArchived && wishlist.role !== "viewer" && <section className="import-panel"><div className="admin-section-head"><div><p className="eyebrow">Wünsche</p><h2>Etwas Schönes hinzufügen</h2></div></div>{productImportEnabled && <form className="import-form" onSubmit={importWish}><input type="url" required value={importUrl} maxLength={16384} placeholder="Produktlink einfügen" disabled={pending !== null} onChange={(event) => setImportUrl(event.target.value)} /><button className="secondary-button" disabled={pending !== null}>{pending === "import-wish" ? "Liest ein …" : "Link einlesen"}</button></form>}<form className="admin-stack" onSubmit={addWish}><WishFields draft={newWish} onChange={setNewWish} idPrefix="new-wish" /><div className="admin-form-actions"><button className="primary-button" disabled={pending !== null}>{pending === "new-wish" ? "Legt an …" : "Wunsch hinzufügen"}</button></div></form></section>}
 

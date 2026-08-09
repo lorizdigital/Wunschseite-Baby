@@ -11,6 +11,7 @@ export type AppWishlist = {
   intro: string;
   publicSlug: string | null;
   visibility: "unlisted" | "access_code";
+  accessCodeSet: boolean;
   publishedAt: string | null;
   archivedAt: string | null;
   deleteAfter: string | null;
@@ -50,7 +51,7 @@ export async function getAppWishlistDetail(wishlistId: string) {
   if (!auth) return null;
 
   const [{ data: list, error: listError }, { data: roleRow, error: roleError }, { data: wishes, error: wishesError }] = await Promise.all([
-    auth.supabase.from("wishlists").select("id,title,intro,public_slug,visibility,published_at,archived_at,delete_after").eq("id", wishlistId).maybeSingle(),
+    auth.supabase.from("wishlists").select("id,title,intro,public_slug,visibility,access_code_version,published_at,archived_at,delete_after").eq("id", wishlistId).maybeSingle(),
     auth.supabase.from("wishlist_members").select("role").eq("wishlist_id", wishlistId).eq("user_id", auth.user.id).maybeSingle(),
     auth.supabase.from("wishes").select("id,title,description,product_url,image_url,price_amount,currency,shop_name,sort_order,archived_at").eq("wishlist_id", wishlistId).order("sort_order"),
   ]);
@@ -79,6 +80,7 @@ export async function getAppWishlistDetail(wishlistId: string) {
       intro: (list.intro as string | null) ?? "",
       publicSlug: (list.public_slug as string | null) ?? null,
       visibility: (list.visibility as AppWishlist["visibility"]) ?? "unlisted",
+      accessCodeSet: typeof list.access_code_version === "string",
       publishedAt: (list.published_at as string | null) ?? null,
       archivedAt: (list.archived_at as string | null) ?? null,
       deleteAfter: (list.delete_after as string | null) ?? null,

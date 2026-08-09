@@ -2,6 +2,7 @@ import { z } from "zod";
 import { getPublicReservationStatus } from "@/lib/reservations";
 import { isFeatureEnabled } from "@/lib/app-config";
 import { resolvePublicWishlistBySlug } from "@/lib/wishlist-data";
+import { hasPublicWishlistAccess } from "@/lib/public-wishlist-access";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
   if (!isFeatureEnabled("MULTI_WISHLIST_ENABLED")) return Response.json({ error: "Nicht gefunden." }, { status: 404, headers: noStore });
   const { slug: rawSlug } = await params;
   if (!slug.safeParse(rawSlug).success) return Response.json({ error: "Nicht gefunden." }, { status: 404, headers: noStore });
+  if (!await hasPublicWishlistAccess(rawSlug)) return Response.json({ error: "Nicht gefunden." }, { status: 404, headers: noStore });
 
   try {
     const wishlist = await resolvePublicWishlistBySlug(rawSlug);

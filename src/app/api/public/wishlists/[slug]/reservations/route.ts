@@ -4,6 +4,7 @@ import { isFeatureEnabled } from "@/lib/app-config";
 import { consumeRateLimit, getRequestClientKey } from "@/lib/rate-limit";
 import { isJsonRequest, isSameAppOrigin } from "@/lib/request-security";
 import { resolvePublicWishlistBySlug } from "@/lib/wishlist-data";
+import { hasPublicWishlistAccess } from "@/lib/public-wishlist-access";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ type RouteContext = { params: Promise<{ slug: string }> };
 async function resolvePublishedWishlist(params: RouteContext["params"]) {
   const { slug: rawSlug } = await params;
   if (!slug.safeParse(rawSlug).success) return null;
+  if (!await hasPublicWishlistAccess(rawSlug)) return null;
   return resolvePublicWishlistBySlug(rawSlug);
 }
 

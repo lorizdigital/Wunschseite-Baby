@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { cancelMatsReservation, createMatsReservation } from "@/lib/reservations";
+import { hasMatsAccess } from "@/lib/public-wishlist-access";
 import { consumeRateLimit, getRequestClientKey } from "@/lib/rate-limit";
 import { isJsonRequest, isSameAppOrigin } from "@/lib/request-security";
 
@@ -11,6 +12,7 @@ const noStore = { "Cache-Control": "no-store" };
 
 export async function POST(request: Request) {
   try {
+    if (!await hasMatsAccess()) return Response.json({ error: "Nicht gefunden." }, { status: 404, headers: noStore });
     if (!isSameAppOrigin(request) || !isJsonRequest(request)) return Response.json({ error: "Ungültige Anfrage." }, { status: 403, headers: noStore });
     const clientKey = getRequestClientKey(request);
     const limit = await consumeRateLimit("mats-reservation", clientKey, 10, 10 * 60);
@@ -30,6 +32,7 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    if (!await hasMatsAccess()) return Response.json({ error: "Nicht gefunden." }, { status: 404, headers: noStore });
     if (!isSameAppOrigin(request) || !isJsonRequest(request)) return Response.json({ error: "Ungültige Anfrage." }, { status: 403, headers: noStore });
     const clientKey = getRequestClientKey(request);
     const limit = await consumeRateLimit("mats-cancel", clientKey, 10, 15 * 60);

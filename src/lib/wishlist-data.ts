@@ -2,6 +2,7 @@ import "server-only";
 
 import type { ArtworkKind, Wish } from "@/data/wishes";
 import { getSupabaseAdmin, MATS_WISHLIST_ID } from "@/lib/supabase-admin";
+import { hasMatsAccess, hasPublicWishlistAccess } from "@/lib/public-wishlist-access";
 
 const artworks: ArtworkKind[] = ["bag", "towel", "thermometer", "monitor", "mobile", "nailfile", "pram", "blanket"];
 const palettes: Wish["palette"][] = ["sand", "blue", "sage", "cream", "rose"];
@@ -50,6 +51,7 @@ function mapWishes(rows: Record<string, unknown>[]): Wish[] {
 }
 
 export async function getMatsWishlistPageData(): Promise<WishlistPageData | null> {
+  if (!await hasMatsAccess()) return null;
   const supabase = getSupabaseAdmin();
   if (!supabase) return null;
 
@@ -69,6 +71,7 @@ export async function getMatsWishlistPageData(): Promise<WishlistPageData | null
 
 /** Resolves only a published, non-archived public list. There is no fallback. */
 export async function resolvePublicWishlistBySlug(publicSlug: string): Promise<PublicWishlistContext | null> {
+  if (!await hasPublicWishlistAccess(publicSlug)) return null;
   const supabase = getSupabaseAdmin();
   if (!supabase || !/^[A-Za-z0-9_-]{22,128}$/.test(publicSlug)) return null;
 
@@ -84,6 +87,7 @@ export async function resolvePublicWishlistBySlug(publicSlug: string): Promise<P
  * list all resolve to null and can never render Mats' fallback data.
  */
 export async function getPublicWishlistPageData(publicSlug: string): Promise<PublicWishlistPageData | null> {
+  if (!await hasPublicWishlistAccess(publicSlug)) return null;
   const supabase = getSupabaseAdmin();
   if (!supabase || !/^[A-Za-z0-9_-]{22,128}$/.test(publicSlug)) return null;
 
