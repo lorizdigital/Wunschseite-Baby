@@ -1,8 +1,14 @@
 import { randomUUID } from "node:crypto";
+import { NextResponse } from "next/server";
 import { z } from "zod";
 import { ACCESS_CODE_MAX_LENGTH, ACCESS_CODE_MIN_LENGTH } from "@/lib/access-code";
 import { isAdminRequest } from "@/lib/admin-auth";
-import { createStoredMatsAccessCodeHash, grantMatsAccess } from "@/lib/public-wishlist-access";
+import {
+  accessCookieOptions,
+  createStoredMatsAccessCodeHash,
+  getAccessCookieName,
+  grantMatsAccess,
+} from "@/lib/public-wishlist-access";
 import { getSupabaseAdmin, MATS_WISHLIST_ID } from "@/lib/supabase-admin";
 
 export const runtime = "nodejs";
@@ -30,5 +36,9 @@ export async function POST(request: Request) {
 
   const verifiedGrant = await grantMatsAccess(parsed.data.accessCode);
   if (!verifiedGrant) return Response.json({ error: "Der Zugangscode wurde gespeichert, konnte aber technisch nicht bestätigt werden. Bitte versuche es erneut." }, { status: 500 });
-  return Response.json({ accessCodeSet: true, accessCodeVerified: true });
+
+  const response = NextResponse.json({ accessCodeSet: true, accessCodeVerified: true });
+  response.cookies.set(getAccessCookieName("mats"), verifiedGrant, accessCookieOptions());
+  response.headers.set("Cache-Control", "private, no-store");
+  return response;
 }
