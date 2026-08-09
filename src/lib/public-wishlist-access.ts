@@ -2,7 +2,7 @@ import "server-only";
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
-import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { getSupabaseAdmin, MATS_WISHLIST_ID } from "@/lib/supabase-admin";
 import { usesSecureCookies } from "@/lib/app-config";
 
 const ACCESS_COOKIE_PREFIX = "wuenschi_access_";
@@ -112,18 +112,56 @@ function getMatsVersion() {
   return version && version.length >= 16 && version.length <= 200 ? version : null;
 }
 
+type MatsAccessCodeRow = { access_code_hash: string | null; access_code_version: string | null };
+type StoredMatsAccessCode = { hash: string; version: string };
+
+function createMatsAccessCodeHash(accessCode: string) {
+  const secret = getSessionSecret();
+  return secret
+    ? `hmac-sha256:${createHmac("sha256", secret).update(`mats-db-access:${accessCode.trim()}`).digest("hex")}`
+    : null;
+}
+
+async function getStoredMatsAccessCode() {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from("wishlists")
+    .select("access_code_hash,access_code_version")
+    .eq("id", MATS_WISHLIST_ID)
+    .maybeSingle();
+  const row = data as MatsAccessCodeRow | null;
+  return !error
+    && typeof row?.access_code_hash === "string"
+    && row.access_code_hash.startsWith("hmac-sha256:")
+    && typeof row.access_code_version === "string"
+    ? { hash: row.access_code_hash, version: row.access_code_version } satisfies StoredMatsAccessCode
+    : null;
+}
+
 export async function hasMatsAccess() {
-  const version = getMatsVersion();
+  const stored = await getStoredMatsAccessCode();
+  const version = stored?.version ?? getMatsVersion();
   if (!version) return false;
   const cookieStore = await cookies();
   return parseGrant(cookieStore.get(getAccessCookieName("mats"))?.value, "mats", version);
 }
 
-export function grantMatsAccess(accessCode: string) {
+export async function grantMatsAccess(accessCode: string) {
+  const stored = await getStoredMatsAccessCode();
   const expectedCode = process.env.MATS_ACCESS_CODE;
-  const version = getMatsVersion();
+  const version = stored?.version ?? getMatsVersion();
   const secret = getSessionSecret();
-  if (!expectedCode || !version || !secret) return null;
+  if (!version || !secret) return null;
+
+  if (stored) {
+    const expected = Buffer.from(stored.hash);
+    const received = Buffer.from(createMatsAccessCodeHash(accessCode) ?? "");
+    if (expected.length !== received.length || !timingSafeEqual(expected, received)) return null;
+    return createGrant("mats", version);
+  }
+
+  if (!expectedCode) return null;
 
   // Cloudflare secrets can be populated from a terminal or a copied value. A
   // trailing line break must not make an otherwise correct access code fail.
@@ -131,4 +169,9 @@ export function grantMatsAccess(accessCode: string) {
   const received = createHmac("sha256", secret).update(`mats-access:${accessCode.trim()}`).digest();
   if (expected.length !== received.length || !timingSafeEqual(expected, received)) return null;
   return createGrant("mats", version);
+}
+
+/** Creates the keyed verifier persisted for Mats' legacy-list reset flow. */
+export function createStoredMatsAccessCodeHash(accessCode: string) {
+  return createMatsAccessCodeHash(accessCode);
 }

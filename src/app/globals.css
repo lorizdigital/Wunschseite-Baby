@@ -204,6 +204,13 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .field-label span { color: var(--muted); font-weight: 400; }
 .text-field { border: 1px solid #cfd5cf; border-radius: 10px; color: var(--ink); height: 50px; outline: none; padding: 0 14px; width: 100%; }
 .text-field:focus { border-color: var(--sage); box-shadow: 0 0 0 3px rgba(114,139,121,.14); }
+.secret-input { position: relative; }
+.secret-input .text-field { padding-right: 52px; }
+.secret-input > input { padding-right: 52px; }
+.secret-visibility-button { align-items: center; background: transparent; border: 0; border-radius: 8px; color: var(--muted); cursor: pointer; display: flex; height: 36px; justify-content: center; padding: 0; position: absolute; right: 7px; top: 7px; width: 36px; }
+.secret-visibility-button:hover { background: var(--sage-pale); color: var(--sage-dark); }
+.secret-visibility-button:focus-visible { box-shadow: 0 0 0 3px rgba(114,139,121,.3); outline: none; }
+.secret-visibility-button svg { fill: none; height: 19px; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; width: 19px; }
 .field-help { color: var(--muted); font-size: 11px; margin: 8px 0 0; }
 .success-panel { text-align: center; }
 .success-icon { align-items: center; background: var(--sage); border-radius: 50%; color: white; display: inline-flex; font-size: 25px; height: 56px; justify-content: center; margin-bottom: 18px; width: 56px; }

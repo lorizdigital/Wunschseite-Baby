@@ -21,6 +21,12 @@ function formatPrice(value: number | null, currency = "EUR") {
   return value === null ? "Preis offen" : new Intl.NumberFormat("de-DE", { style: "currency", currency }).format(value);
 }
 
+function VisibilityIcon({ visible }: { visible: boolean }) {
+  return visible
+    ? <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 10.7a2 2 0 0 0 2.7 2.7M9.9 4.2A10.8 10.8 0 0 1 12 4c5.2 0 8.8 5.1 9.7 7.1a1.8 1.8 0 0 1 0 1.7 15.5 15.5 0 0 1-3.1 4.1M6.2 6.2A15.3 15.3 0 0 0 2.3 11a1.8 1.8 0 0 0 0 1.7C3.2 14.9 6.8 20 12 20a10.8 10.8 0 0 0 3.1-.5" /></svg>
+    : <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M2.3 12a1.8 1.8 0 0 1 0-1.7C3.2 8.1 6.8 3 12 3s8.8 5.1 9.7 7.3a1.8 1.8 0 0 1 0 1.7C20.8 20 17.2 21 12 21S3.2 15.9 2.3 13.7a1.8 1.8 0 0 1 0-1.7Z" /><circle cx="12" cy="12" r="3" /></svg>;
+}
+
 function DraftFields({ value, onChange }: { value: WishDraft; onChange: (draft: WishDraft) => void }) {
   const set = <K extends keyof WishDraft>(key: K, next: WishDraft[K]) => onChange({ ...value, [key]: next });
   return <div className="admin-field-grid">
@@ -39,6 +45,8 @@ export function WishManager() {
   const [authorized, setAuthorized] = useState(false);
   const [wishes, setWishes] = useState<AdminWish[]>([]);
   const [productUrl, setProductUrl] = useState("");
+  const [matsAccessCode, setMatsAccessCode] = useState("");
+  const [matsAccessCodeVisible, setMatsAccessCodeVisible] = useState(false);
   const [newDraft, setNewDraft] = useState<WishDraft | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<WishDraft>(emptyDraft);
@@ -121,6 +129,16 @@ export function WishManager() {
     finally { setPending(false); }
   }
 
+  async function saveMatsAccessCode(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setPending(true); setError(""); setMessage("");
+    try {
+      const payload = await adminRequest("/api/admin/mats-access-code", { method: "POST", body: JSON.stringify({ accessCode: matsAccessCode }) }) as { accessCodeSet?: boolean; error?: string };
+      if (!payload.accessCodeSet) throw new Error(payload.error ?? "Der Zugangscode konnte nicht gespeichert werden.");
+      setMatsAccessCode(""); setMatsAccessCodeVisible(false); setMessage("Der Zugangscode für Mats ist gespeichert. Bisherige Freigaben wurden ungültig gemacht.");
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Der Zugangscode konnte nicht gespeichert werden."); }
+    finally { setPending(false); }
+  }
+
   async function setArchived(wish: AdminWish, archivedValue: boolean) {
     if (archivedValue && !window.confirm(`„${wish.title}“ wirklich archivieren?`)) return;
     setPending(true); setError("");
@@ -147,6 +165,13 @@ export function WishManager() {
 
     <section className="import-panel admin-wish-list"><div className="admin-section-head"><div><p className="eyebrow">Öffentliche Liste</p><h2>{active.length} aktive Wünsche</h2></div><button className="primary-button" disabled={!orderDirty || pending} onClick={saveOrder}>Reihenfolge speichern</button></div>
       <div className="admin-items">{active.map((wish, index) => <article className="admin-item" key={wish.id}><div className="admin-item-image">{wish.imageUrl ? <img src={wish.imageUrl} alt="" /> : <span>–</span>}</div><div className="admin-item-copy"><strong>{wish.title}</strong><small>{wish.shopName} · {formatPrice(wish.priceAmount, wish.currency)}{wish.reserved ? " · Reserviert" : ""}</small></div><div className="admin-item-order"><button aria-label={`${wish.title} nach oben`} disabled={index === 0 || pending} onClick={() => move(wish.id, -1)}>↑</button><button aria-label={`${wish.title} nach unten`} disabled={index === active.length - 1 || pending} onClick={() => move(wish.id, 1)}>↓</button></div><div className="admin-item-actions"><button className="inline-button" onClick={() => startEdit(wish)}>Bearbeiten</button><button className="inline-button danger-text" disabled={wish.reserved || pending} title={wish.reserved ? "Reservierte Wünsche können nicht archiviert werden" : ""} onClick={() => setArchived(wish, true)}>Archivieren</button></div>{editingId === wish.id && <form className="admin-edit-form" onSubmit={saveEdit}><DraftFields value={editDraft} onChange={setEditDraft}/><div className="admin-form-actions"><button className="primary-button" disabled={pending}>Änderungen speichern</button><button className="secondary-button" type="button" onClick={() => setEditingId(null)}>Abbrechen</button></div></form>}</article>)}</div>
+    </section>
+
+    <section className="import-panel"><p className="eyebrow">Code-Schutz</p><h2>Zugang für Mats festlegen</h2><p>Dieser Code schützt ausschließlich die Liste für Mats. Er ersetzt den bisherigen Code sofort; offene Browser-Freigaben verlieren dadurch ihre Gültigkeit.</p>
+      <form className="import-form" onSubmit={saveMatsAccessCode}>
+        <div className="secret-input"><input aria-label="Zugangscode für Mats" type={matsAccessCodeVisible ? "text" : "password"} required minLength={8} maxLength={64} autoComplete="new-password" placeholder="Neuen Zugangscode festlegen" value={matsAccessCode} onChange={(event) => setMatsAccessCode(event.target.value)} /><button className="secret-visibility-button" type="button" onClick={() => setMatsAccessCodeVisible((visible) => !visible)} aria-label={matsAccessCodeVisible ? "Zugangscode verbergen" : "Zugangscode anzeigen"} aria-pressed={matsAccessCodeVisible}><VisibilityIcon visible={matsAccessCodeVisible} /></button></div>
+        <button className="secondary-button" disabled={pending}>{pending ? "Speichert …" : "Code speichern"}</button>
+      </form>
     </section>
 
     {archived.length > 0 && <section className="import-panel admin-wish-list"><p className="eyebrow">Nicht öffentlich</p><h2>Archivierte Wünsche</h2><div className="admin-items">{archived.map((wish) => <article className="admin-item" key={wish.id}><div className="admin-item-image">{wish.imageUrl ? <img src={wish.imageUrl} alt="" /> : <span>–</span>}</div><div className="admin-item-copy"><strong>{wish.title}</strong><small>{wish.shopName}</small></div><button className="secondary-button" disabled={pending} onClick={() => setArchived(wish, false)}>Wiederherstellen</button></article>)}</div></section>}

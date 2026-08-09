@@ -16,7 +16,7 @@ export async function POST(request: Request) {
 
   const formData = await request.formData();
   const accessCode = formData.get("accessCode");
-  const grant = typeof accessCode === "string" ? grantMatsAccess(accessCode) : null;
+  const grant = typeof accessCode === "string" ? await grantMatsAccess(accessCode) : null;
   if (!grant) return redirect(request, "invalid");
 
   const response = NextResponse.redirect(new URL("/mats", request.url), 303);
