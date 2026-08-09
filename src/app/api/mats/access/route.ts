@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { grantMatsAccess, accessCookieOptions, getAccessCookieName } from "@/lib/public-wishlist-access";
+import { grantMatsAccess, accessCookieOptions, getAccessCookieName, getMatsAccessVersion } from "@/lib/public-wishlist-access";
 import { consumeRateLimit, getRequestClientKey } from "@/lib/rate-limit";
 import { isSameAppOrigin } from "@/lib/request-security";
 
@@ -11,7 +11,9 @@ function redirect(request: Request, state: "invalid" | "rate") {
 
 export async function POST(request: Request) {
   if (!isSameAppOrigin(request)) return redirect(request, "invalid");
-  const limit = await consumeRateLimit("mats-access", getRequestClientKey(request), 8, 15 * 60);
+  const accessVersion = await getMatsAccessVersion();
+  if (!accessVersion) return redirect(request, "invalid");
+  const limit = await consumeRateLimit("mats-access", `${getRequestClientKey(request)}:${accessVersion}`, 8, 15 * 60);
   if (limit !== true) return redirect(request, "rate");
 
   const formData = await request.formData();

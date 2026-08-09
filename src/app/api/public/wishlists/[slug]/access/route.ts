@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { isFeatureEnabled } from "@/lib/app-config";
-import { accessCookieOptions, getAccessCookieName, grantPublicWishlistAccess } from "@/lib/public-wishlist-access";
+import { accessCookieOptions, getAccessCookieName, getPublicWishlistAccessVersion, grantPublicWishlistAccess } from "@/lib/public-wishlist-access";
 import { consumeRateLimit, getRequestClientKey } from "@/lib/rate-limit";
 import { isSameAppOrigin } from "@/lib/request-security";
 
@@ -20,7 +20,9 @@ export async function POST(request: Request, { params }: RouteContext) {
   if (!slug.safeParse(publicSlug).success) return Response.json({ error: "Nicht gefunden." }, { status: 404 });
   if (!isSameAppOrigin(request)) return redirect(request, publicSlug, "invalid");
 
-  const limit = await consumeRateLimit("public-wishlist-access", `${getRequestClientKey(request)}:${publicSlug}`, 8, 15 * 60);
+  const accessVersion = await getPublicWishlistAccessVersion(publicSlug);
+  if (!accessVersion) return redirect(request, publicSlug, "invalid");
+  const limit = await consumeRateLimit("public-wishlist-access", `${getRequestClientKey(request)}:${publicSlug}:${accessVersion}`, 8, 15 * 60);
   if (limit !== true) return redirect(request, publicSlug, "rate");
 
   const formData = await request.formData();

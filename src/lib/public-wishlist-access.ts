@@ -76,7 +76,7 @@ export function accessCookieOptions() {
   };
 }
 
-async function getPublicWishlistAccessVersion(publicSlug: string) {
+export async function getPublicWishlistAccessVersion(publicSlug: string) {
   if (!/^[A-Za-z0-9_-]{22,128}$/.test(publicSlug)) return null;
   const supabase = getSupabaseAdmin();
   if (!supabase) return null;
@@ -140,11 +140,15 @@ async function getStoredMatsAccessCode() {
 }
 
 export async function hasMatsAccess() {
-  const stored = await getStoredMatsAccessCode();
-  const version = stored?.version ?? getMatsVersion();
+  const version = await getMatsAccessVersion();
   if (!version) return false;
   const cookieStore = await cookies();
   return parseGrant(cookieStore.get(getAccessCookieName("mats"))?.value, "mats", version);
+}
+
+export async function getMatsAccessVersion() {
+  const stored = await getStoredMatsAccessCode();
+  return stored?.version ?? getMatsVersion();
 }
 
 export async function grantMatsAccess(accessCode: string) {
