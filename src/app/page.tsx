@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { PRODUCT_NAME } from "@/lib/brand";
 
+// The root page is deliberately request-rendered so a deployment replaces the
+// previous landing page immediately instead of retaining an old static page
+// from the shared incremental cache.
+export const dynamic = "force-dynamic";
+
 export default function Home() {
   return (
     <main className="landing-page">
