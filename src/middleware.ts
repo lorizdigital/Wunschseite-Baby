@@ -14,8 +14,37 @@ function sessionCookieOptions(options: Record<string, unknown>) {
   return { ...normalized, httpOnly: true, secure: usesSecureCookies(), sameSite: "lax" as const, path: "/" };
 }
 
+function isHttpRequest(request: NextRequest) {
+  const forwardedProtocol = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim().toLowerCase();
+  if (forwardedProtocol) return forwardedProtocol === "http";
+
+  try {
+    const visitor = JSON.parse(request.headers.get("cf-visitor") ?? "{}") as { scheme?: string };
+    if (visitor.scheme) return visitor.scheme.toLowerCase() === "http";
+  } catch {
+    // A malformed optional proxy header must never prevent a request.
+  }
+
+  return request.nextUrl.protocol === "http:";
+}
+
+function needsSessionRefresh(pathname: string) {
+  return pathname === "/neu"
+    || pathname.startsWith("/app/")
+    || pathname === "/app"
+    || pathname.startsWith("/einladung/")
+    || pathname.startsWith("/api/app/");
+}
+
 /** Refreshes a session only. Every page and mutation still checks getUser/RPC. */
 export async function middleware(request: NextRequest) {
+  if (isHttpRequest(request)) {
+    const secureUrl = request.nextUrl.clone();
+    secureUrl.protocol = "https:";
+    return NextResponse.redirect(secureUrl, 308);
+  }
+
+  if (!needsSessionRefresh(request.nextUrl.pathname)) return NextResponse.next({ request });
   if (!isFeatureEnabled("MULTI_WISHLIST_ENABLED")) return new NextResponse(null, { status: 404 });
   const config = getSupabaseUserConfig();
   if (!config) return NextResponse.next({ request });
@@ -39,4 +68,4 @@ export async function middleware(request: NextRequest) {
   return response;
 }
 
-export const config = { matcher: ["/app/:path*", "/neu", "/einladung/:path*", "/api/app/:path*"] };
+export const config = { matcher: ["/:path*"] };
