@@ -115,10 +115,14 @@ function getMatsVersion() {
 type MatsAccessCodeRow = { access_code_hash: string | null; access_code_version: string | null };
 type StoredMatsAccessCode = { hash: string; version: string };
 
+function normalizeAccessCode(accessCode: string) {
+  return accessCode.trim().normalize("NFC");
+}
+
 function createMatsAccessCodeHash(accessCode: string) {
   const secret = getSessionSecret();
   return secret
-    ? `hmac-sha256:${createHmac("sha256", secret).update(`mats-db-access:${accessCode.trim()}`).digest("hex")}`
+    ? `hmac-sha256:${createHmac("sha256", secret).update(`mats-db-access:${normalizeAccessCode(accessCode)}`).digest("hex")}`
     : null;
 }
 
@@ -160,7 +164,7 @@ export async function grantMatsAccess(accessCode: string) {
 
   if (stored) {
     const expected = Buffer.from(stored.hash);
-    const received = Buffer.from(createMatsAccessCodeHash(accessCode) ?? "");
+    const received = Buffer.from(createMatsAccessCodeHash(normalizeAccessCode(accessCode)) ?? "");
     if (expected.length !== received.length || !timingSafeEqual(expected, received)) return null;
     return createGrant("mats", version);
   }

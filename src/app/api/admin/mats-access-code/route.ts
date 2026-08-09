@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { ACCESS_CODE_MAX_LENGTH, ACCESS_CODE_MIN_LENGTH } from "@/lib/access-code";
 import { isAdminRequest } from "@/lib/admin-auth";
-import { createStoredMatsAccessCodeHash } from "@/lib/public-wishlist-access";
+import { createStoredMatsAccessCodeHash, grantMatsAccess } from "@/lib/public-wishlist-access";
 import { getSupabaseAdmin, MATS_WISHLIST_ID } from "@/lib/supabase-admin";
 
 export const runtime = "nodejs";
@@ -20,10 +20,15 @@ export async function POST(request: Request) {
   const supabase = getSupabaseAdmin();
   if (!accessCodeHash || !supabase) return Response.json({ error: "Der Zugangscode kann gerade nicht gespeichert werden." }, { status: 503 });
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("wishlists")
     .update({ access_code_hash: accessCodeHash, access_code_version: randomUUID(), visibility: "access_code", updated_at: new Date().toISOString() })
-    .eq("id", MATS_WISHLIST_ID);
-  if (error) return Response.json({ error: "Der Zugangscode konnte nicht gespeichert werden." }, { status: 422 });
-  return Response.json({ accessCodeSet: true });
+    .eq("id", MATS_WISHLIST_ID)
+    .select("id")
+    .maybeSingle();
+  if (error || !updated) return Response.json({ error: "Der Zugangscode konnte nicht gespeichert werden." }, { status: 422 });
+
+  const verifiedGrant = await grantMatsAccess(parsed.data.accessCode);
+  if (!verifiedGrant) return Response.json({ error: "Der Zugangscode wurde gespeichert, konnte aber technisch nicht bestätigt werden. Bitte versuche es erneut." }, { status: 500 });
+  return Response.json({ accessCodeSet: true, accessCodeVerified: true });
 }

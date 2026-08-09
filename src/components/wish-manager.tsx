@@ -136,9 +136,9 @@ export function WishManager() {
     if (!matsAccessCodeValidation.valid) { setError(matsAccessCodeValidation.message); return; }
     setPending(true); setError(""); setMessage("");
     try {
-      const payload = await adminRequest("/api/admin/mats-access-code", { method: "POST", body: JSON.stringify({ accessCode: matsAccessCode }) }) as { accessCodeSet?: boolean; error?: string };
-      if (!payload.accessCodeSet) throw new Error(payload.error ?? "Der Zugangscode konnte nicht gespeichert werden.");
-      setMatsAccessCode(""); setMatsAccessCodeVisible(false); setMessage("Der Zugangscode für Mats ist gespeichert. Bisherige Freigaben wurden ungültig gemacht.");
+      const payload = await adminRequest("/api/admin/mats-access-code", { method: "POST", body: JSON.stringify({ accessCode: matsAccessCode }) }) as { accessCodeSet?: boolean; accessCodeVerified?: boolean; error?: string };
+      if (!payload.accessCodeSet || !payload.accessCodeVerified) throw new Error(payload.error ?? "Der Zugangscode konnte nicht bestätigt werden.");
+      setMatsAccessCode(""); setMatsAccessCodeVisible(false); setMessage("Der Zugangscode für Mats ist gespeichert und technisch geprüft. Bisherige Freigaben wurden ungültig gemacht.");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Der Zugangscode konnte nicht gespeichert werden."); }
     finally { setPending(false); }
   }
