@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import { PRODUCT_NAME, PRODUCT_ORIGIN } from "@/lib/brand";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Mats' Wunschliste",
+  metadataBase: new URL(PRODUCT_ORIGIN),
+  title: PRODUCT_NAME,
   description:
-    "Unsere persönliche Wunschliste für Mats – unkompliziert ansehen und ohne Konto reservieren.",
+    "Wünschi – private Wunschlisten für Familien, unkompliziert ansehen und ohne Konto reservieren.",
   robots: { index: false, follow: false },
 };
 

@@ -1,10 +1,28 @@
-# Wünsche für Mats
+# Wünschi
 
-Eine private Baby-Wunschliste. Gäste benötigen kein Konto: Sie reservieren einen Wunsch mit ihrem Namen und einem selbst gewählten Passwort. Zum Freigeben klicken sie denselben Wunsch erneut an und geben das Passwort wieder ein.
+Wünschi ist eine warme, private Wunschlisten-Anwendung für werdende Familien. Die offizielle Domain ist [wünschi.de](https://wünschi.de). Mats’ bestehende Liste bleibt unter `/` unverändert erreichbar; die Mehrlistenfunktion liegt getrennt unter `/app` und wird über Feature-Flags kontrolliert freigeschaltet.
 
-Die nicht verlinkte Seite `/admin` dient Lino und seiner Frau zur gemeinsamen Verwaltung. Es gibt keine Benutzerkonten; alle Verwaltungsaktionen werden serverseitig durch einen gemeinsamen Admin-Code geschützt. Dort lassen sich Produktlinks auslesen, Angaben vor dem Speichern korrigieren, Wünsche bearbeiten, sortieren sowie archivieren und wiederherstellen. Falls ein Shop das automatische Auslesen blockiert, können die Angaben manuell eingetragen werden.
+## Projektidentität
 
-Die bisherigen GoWish-Wünsche wurden einmalig migriert. Eine dauerhafte GoWish-Importschnittstelle ist nicht Bestandteil der Anwendung.
+| Merkmal | Wert |
+|---|---|
+| Produktname | Wünschi |
+| Offizielle Domain | `wünschi.de` |
+| Technischer ASCII-Identifier | `wuenschi` |
+
+Die zentrale technische Quelle für diese Werte ist [src/lib/brand.ts](src/lib/brand.ts). Für lokale Entwicklung bleibt `APP_ORIGIN` auf `http://localhost:3000`; im öffentlichen Betrieb muss es auf `https://wünschi.de` gesetzt werden.
+
+**Wichtig:** Die Mehrlisten-Migrationen wurden gegen das getrennte Supabase-Staging ausgeführt und dort mit dem automatisierten Abnahmetest geprüft. Gegen Mats’ Produktionsprojekt wurde keine Mehrlisten-Migration ausgeführt. Vor einem produktiven `db push` gilt weiterhin zwingend die sichere Reihenfolge in diesem Dokument und in [docs/staging-acceptance.md](docs/staging-acceptance.md).
+
+## Funktionsumfang
+
+- geschützte Elternkonten, Rollen und E-Mail-gebundene Einladungen
+- bis zu drei aktive Listen je Konto und bis zu 200 aktive Wünsche je Liste
+- private Entwurfsvorschau, Veröffentlichung per nicht erratbarem Link und Link-Rotation
+- öffentliche Reservierungen ohne Gastkonto; Namen und Passwörter bleiben privat
+- Wunschverwaltung, Sortierung, Archivierung und optionaler Produktimport
+- Datenexport, Löschantrag und definierte Aufbewahrungsfristen
+- Mats’ Legacy-Verwaltung bleibt als unabhängiger Rückfallweg verfügbar
 
 ## Lokal starten
 
@@ -13,44 +31,92 @@ npm install
 npm run dev
 ```
 
-Ohne Supabase-Variablen läuft die öffentliche Wunschliste im **Demo-Modus**. Reservierungen werden dabei nur im Arbeitsspeicher des lokalen Next.js-Prozesses gehalten und gehen bei einem Neustart verloren. Die Verwaltung benötigt immer Supabase.
+Ohne Supabase-Konfiguration läuft ausschließlich Mats’ öffentliche Liste im lokalen Demo-Modus. Dieser speichert Reservierungen nur im Arbeitsspeicher. Die neue Elternverwaltung benötigt eine Supabase-Verbindung und einen Publishable Key.
 
-## Supabase verbinden
+Prüfbefehle:
 
-1. Die Supabase CLI installieren: `npm install supabase --save-dev`.
-2. Im Projektordner `npx supabase login` und anschließend `npx supabase link --project-ref DEINE_PROJECT_ID` ausführen.
-3. Mit `npx supabase db push --dry-run` die Migrationen prüfen und danach mit `npx supabase db push` anwenden.
-4. Im Supabase-Dashboard die Project URL und unter **API Keys** den serverseitigen Secret Key kopieren.
-5. `.env.example` als `.env.local` anlegen und diese Werte setzen:
-
-```dotenv
-NEXT_PUBLIC_SUPABASE_URL=https://DEIN-PROJEKT.supabase.co
-SUPABASE_SECRET_KEY=DEIN_SERVERSEITIGER_SECRET_KEY
-WISHLIST_ID=3d1f46e6-8e0e-4418-a0da-581be7cf795f
-ADMIN_IMPORT_SECRET=EUER_GEMEINSAMER_ADMIN_CODE
+```bash
+npm test
+npm run lint
+npm run build
 ```
 
-6. Den Entwicklungsserver vollständig neu starten und `/admin` öffnen.
+## Konfiguration
 
-`SUPABASE_SECRET_KEY` und `ADMIN_IMPORT_SECRET` sind ausschließlich serverseitig. Sie dürfen nie als `NEXT_PUBLIC_...` angelegt oder ins Repository eingecheckt werden. Bei älteren Supabase-Projekten kann statt `SUPABASE_SECRET_KEY` der Legacy-Wert `SUPABASE_SERVICE_ROLE_KEY` verwendet werden.
+`.env.example` nach `.env.local` kopieren und die folgenden Werte setzen:
 
-Der Variablenname `ADMIN_IMPORT_SECRET` bleibt aus Kompatibilitätsgründen bestehen; funktional ist er der gemeinsame Verwaltungscode. Neue Produktbilder werden dauerhaft in den Supabase-Storage-Bucket `product-images` kopiert und hängen dadurch nicht vom ursprünglichen Shopbild ab.
+| Variable | Zweck | Erforderlich |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | URL des Supabase-Projekts | Ja für Supabase-Betrieb |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Browser-Schlüssel; alternativ der alte `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Ja für Auth |
+| `SUPABASE_SECRET_KEY` | serverseitiger Supabase-Secret-Key; alternativ `SUPABASE_SERVICE_ROLE_KEY` | Ja für Verwaltungs- und Wartungsrouten |
+| `ADMIN_IMPORT_SECRET` | gemeinsamer, nur serverseitiger Mats-Legacy-Admin-Code | Ja, solange `/admin` genutzt wird |
+| `APP_ORIGIN` | exakte öffentliche Origin, im Produktivbetrieb `https://wünschi.de` | Ja vor Veröffentlichung |
+| `INTERNAL_CRON_SECRET` | separates Geheimnis für die internen Löschläufe | Ja vor Produktivbetrieb |
+| `INTERNAL_PROVISIONING_SECRET` | separates Geheimnis für die manuelle Aufnahme in die geschlossene Beta | Ja für geschlossene Beta |
+| `MULTI_WISHLIST_ENABLED` | schaltet `/app`, Einladungen und Mehrlisten-APIs frei | Nein, standardmäßig `false` |
+| `SELF_SERVICE_SIGNUP_ENABLED` | schaltet `/neu` frei | Nein, standardmäßig `false` |
+| `PUBLICATION_ENABLED` | erlaubt das Veröffentlichen von Listen | Nein, standardmäßig `false` |
+| `PRODUCT_IMPORT_ENABLED` | erlaubt das serverseitige Auslesen von Produktseiten | Nein, standardmäßig `false` |
+| `LEGACY_MATS_ADMIN_ENABLED` | hält den Legacy-Admin als Rückfallweg aktiv | Nein, standardmäßig `true` |
 
-## Live auf Vercel
+`SUPABASE_SECRET_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_IMPORT_SECRET`, `INTERNAL_CRON_SECRET` und `INTERNAL_PROVISIONING_SECRET` dürfen niemals mit `NEXT_PUBLIC_` beginnen, in den Browser gelangen oder eingecheckt werden.
 
-1. Repository zu GitHub übertragen und in Vercel importieren.
-2. In Vercel unter **Settings → Environment Variables** dieselben vier Variablen wie oben eintragen.
-3. Deployment auslösen und anschließend Reservieren, Freigeben sowie `/admin` einmal testen.
-4. Optional eine eigene Domain verbinden und den privaten Link an Familie und Freunde senden.
+## Sichere Inbetriebnahme
 
-Die Anwendung setzt global `noindex`, `nofollow`, eine vollständig sperrende `robots.txt` und den Header `X-Robots-Tag: noindex, nofollow, noarchive`. Das verhindert die reguläre Aufnahme in Suchmaschinen, ersetzt aber keinen echten Zugriffsschutz: Wer den Link kennt, kann die öffentliche Wunschliste sehen. Schreibende Verwaltungsaktionen erfordern zusätzlich den gemeinsamen Admin-Code.
+1. **Produktentscheidungen bestätigen.** Beta-Modell, Owner-Rollen, Linkmodell, Reservierungsmodell, Sichtbarkeit des Gastnamens, Bildarten sowie Quoten/Löschfristen sind im Umsetzungsplan festgehalten.
+2. **Produktionsbestand sichern.** Vorher Datenbank-Backup, Mats-Fingerprints und Storage-Manifest erstellen. Die erwarteten Werte müssen vor der Migration dokumentiert sein.
+3. **Staging isolieren.** Ein separates Supabase-Projekt mit eigener Auth- und Storage-Umgebung verwenden.
+4. **Migrationen zuerst in Staging prüfen.** `npx supabase db push --dry-run`, dann `npx supabase db push`; anschließend jeden Fall aus [docs/staging-acceptance.md](docs/staging-acceptance.md) mit zwei Testkonten durchführen.
+5. **Staging abnehmen.** RLS, Rollen, Einladungen, parallele Reservierungen, Datenlöschung und Mats-Regression müssen bestanden sein.
+6. **Erst dann Produktion migrieren.** Mit frischem Backup und vorab dokumentierten Mats-Fingerprints. Die Migrationen sind additiv; Mats wird nicht automatisch einem Konto zugeordnet.
+7. **Geschlossen starten.** `MULTI_WISHLIST_ENABLED=true`, aber Selbstregistrierung, Veröffentlichung und Produktimport zunächst bewusst über die jeweiligen Flags steuern. Neue Testfamilien werden dann ausschließlich über den dokumentierten Provisionierungsweg aufgenommen.
+8. **Mats erst später übernehmen.** Nach einer bestätigten Anmeldung erhält das Elternkonto gezielt die Owner-Mitgliedschaft. `/admin` erst nach nachgewiesener Regression mit `LEGACY_MATS_ADMIN_ENABLED=false` abschalten.
 
-## Sicherheitsprinzipien
+Ein Anwendungsrollback erfolgt über Flags und ein vorheriges Deployment. Nach der Anlage neuer Familienlisten dürfen Tabellen oder Spalten nicht per Down-Migration gelöscht werden; Fehler werden per Forward-Fix behoben.
 
-- Gäste erhalten kein Benutzerkonto.
-- Pro Wunsch erlaubt ein partieller Unique-Index höchstens eine aktive Reservierung.
-- Reservierungspasswörter werden niemals im Klartext gespeichert oder zurückgegeben. In Supabase liegt ausschließlich ein gesalzener bcrypt-Hash; der lokale Demo-Modus verwendet scrypt.
-- Gastnamen und Passwort-Hashes werden von keinem öffentlichen Endpunkt ausgegeben.
-- Öffentliche Schreibzugriffe laufen ausschließlich über validierte Next.js-Endpunkte.
-- Reservierte Wünsche können in der Verwaltung nicht versehentlich archiviert werden.
-- Bildimporte prüfen Protokoll, Zieladresse, Dateityp und Dateigröße, bevor sie in Supabase Storage gespeichert werden.
+Die genaue Fingerprint- und Storage-Manifest-Erfassung ist in [docs/mats-baseline.md](docs/mats-baseline.md) dokumentiert.
+
+## Tägliche Wartung
+
+Ein externer Scheduler muss täglich zwei interne, nicht öffentliche Endpunkte per `POST` mit `Authorization: Bearer $INTERNAL_CRON_SECRET` aufrufen:
+
+- `/api/internal/purge-expired-data` entfernt abgelaufene Betriebsdaten, fällige Listen und anschließend deren Produktbilder.
+- `/api/internal/purge-deleted-profiles` löscht nach der 30-tägigen Karenzfrist beantragte Konten.
+
+Der erste Lauf löscht ausschließlich Daten, deren Fristen tatsächlich erreicht sind. Für Storage-Objekte nutzt die Anwendung eine dauerhafte Löschwarteschlange: Scheitert der Storage-Aufruf, bleibt der Eintrag offen und wird beim nächsten Lauf erneut versucht.
+
+Für Monitoring den geschützten Endpunkt `GET /api/internal/health` mit demselben Authorization-Header alle fünf Minuten prüfen und bei jedem Nicht-`200` alarmieren. Der Endpunkt gibt absichtlich nur `{ "ok": true|false }` zurück. Anbieter, Empfänger und Eskalationsweg des Alarms werden erst bei Deployment festgelegt.
+
+| Datenart | Frist |
+|---|---:|
+| stornierte Reservierungen | 30 Tage |
+| Reservierungsdaten archivierter Listen | 90 Tage nach Archivierung |
+| deaktivierte/abgelaufene Einladungen | kurz nach Ablauf bzw. Widerruf |
+| beantragte Kontoentfernung | 30 Tage Karenzzeit |
+| beantragte Listenentfernung | 90 Tage Karenzzeit |
+
+Die im Produktplan genannte Erinnerung für unbenutzte Entwürfe nach 180 Tagen benötigt vor der Aktivierung noch einen gewählten E-Mail-Absender und einen Versanddienst.
+
+## Sicherheit und Datenschutz
+
+- Öffentliche Listen sind nicht indexierbar; sie sind dennoch Link-Sharing und kein vollständiger Zugriffsschutz.
+- Schreibende Routen prüfen Origin und JSON-Requests; Reservierungen haben dauerhafte Rate Limits und Idempotency-Keys.
+- Reservierungspasswörter werden nicht im Klartext gespeichert oder ausgegeben.
+- Produktimporte prüfen Ziel-URL, DNS-Ziel, Weiterleitungen, Dateityp und Größe.
+- Produktbilder liegen im Bucket `product-images`; persönliche Baby- oder Familienbilder sind nicht Bestandteil des aktuellen Produkts.
+- Der Datenexport enthält Kontodaten, Mitgliedschaften, Wünsche und Bildreferenzen, aber keine Reservierungsdaten anderer Personen.
+
+Impressum und Datenschutzhinweise liegen unter `/impressum` und `/datenschutz` bereit. Vor der ersten öffentlichen Freigabe müssen sie gegen die tatsächlich gewählte Produktions-Hosting-, SMTP-, Logging- und Backup-Infrastruktur sowie die zugehörigen Auftragsverarbeitungen final geprüft und aktualisiert werden.
+
+## Deployment ohne Domain
+
+Für Entwicklung und Staging genügt eine Plattform-URL. Setze `APP_ORIGIN` dort exakt auf diese URL; Magic Links und Same-Origin-Prüfungen funktionieren nur mit der tatsächlichen Origin. Eine eigene Domain wird erst für den späteren öffentlichen Auftritt benötigt.
+
+Für das geplante Cloudflare-Deployment ist die Anwendung als serverseitiger Worker mit OpenNext vorbereitet. Die Einrichtung von DNS, Cloudflare-Variablen, Supabase-Auth-URLs und die Staging-Reihenfolge steht in [docs/cloudflare-deployment.md](docs/cloudflare-deployment.md). Ein statisches Pages-Deployment ist für die serverseitigen Funktionen dieser Anwendung nicht ausreichend.
+
+## Geschlossene Beta aufnehmen
+
+Wenn `SELF_SERVICE_SIGNUP_ENABLED=false` ist, legt `POST /api/internal/provision-wishlist` ein neues, bestätigtes Elternkonto, eine erste Entwurfsliste und eine Owner-Mitgliedschaft in einem kontrollierten Ablauf an. Der Endpunkt akzeptiert ausschließlich JSON und `Authorization: Bearer $INTERNAL_PROVISIONING_SECRET`; Scheduler und Monitoring können dieses separate Geheimnis nicht verwenden.
+
+Der genaue Staging- und Produktionsablauf steht in [docs/closed-beta-provisioning.md](docs/closed-beta-provisioning.md). Mats wird über diesen Weg nie verändert oder übernommen.

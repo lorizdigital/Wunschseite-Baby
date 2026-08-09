@@ -1,0 +1,15 @@
+# Local Wrangler secrets. Copy to .dev.vars and replace every placeholder.
+# This file is only for `npm run cloudflare:preview` and is never deployed.
+
+NEXT_PUBLIC_SUPABASE_URL="https://<staging-project-ref>.supabase.co"
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="sb_publishable_<staging-key>"
+SUPABASE_SECRET_KEY="<staging-secret-key>"
+ADMIN_IMPORT_SECRET="<staging-admin-secret>"
+APP_ORIGIN="http://localhost:8787"
+MULTI_WISHLIST_ENABLED="true"
+SELF_SERVICE_SIGNUP_ENABLED="false"
+PUBLICATION_ENABLED="true"
+PRODUCT_IMPORT_ENABLED="false"
+LEGACY_MATS_ADMIN_ENABLED="true"
+INTERNAL_CRON_SECRET="<staging-cron-secret>"
+INTERNAL_PROVISIONING_SECRET="<staging-provisioning-secret>"

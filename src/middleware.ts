@@ -1,0 +1,42 @@
+import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
+import { isFeatureEnabled, usesSecureCookies } from "@/lib/app-config";
+
+function getSupabaseUserConfig() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return url && key ? { url, key } : null;
+}
+
+function sessionCookieOptions(options: Record<string, unknown>) {
+  const normalized = { ...options };
+  delete normalized.domain;
+  return { ...normalized, httpOnly: true, secure: usesSecureCookies(), sameSite: "lax" as const, path: "/" };
+}
+
+/** Refreshes a session only. Every page and mutation still checks getUser/RPC. */
+export async function middleware(request: NextRequest) {
+  if (!isFeatureEnabled("MULTI_WISHLIST_ENABLED")) return new NextResponse(null, { status: 404 });
+  const config = getSupabaseUserConfig();
+  if (!config) return NextResponse.next({ request });
+
+  let response = NextResponse.next({ request });
+  const supabase = createServerClient(config.url, config.key, {
+    cookieOptions: { httpOnly: true, secure: usesSecureCookies(), sameSite: "lax", path: "/" },
+    cookies: {
+      getAll: () => request.cookies.getAll(),
+      setAll: (cookiesToSet, headers) => {
+        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+        response = NextResponse.next({ request });
+        cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, sessionCookieOptions(options)));
+        Object.entries(headers).forEach(([name, value]) => response.headers.set(name, value));
+        response.headers.set("Cache-Control", "private, no-store");
+      },
+    },
+  });
+
+  await supabase.auth.getClaims();
+  return response;
+}
+
+export const config = { matcher: ["/app/:path*", "/neu", "/einladung/:path*", "/api/app/:path*"] };

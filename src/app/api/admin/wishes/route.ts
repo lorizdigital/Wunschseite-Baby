@@ -3,7 +3,7 @@ import { isAdminRequest } from "@/lib/admin-auth";
 import type { AdminWish } from "@/lib/admin-types";
 import { removeStoredProductImage, storeProductImage } from "@/lib/product-image-storage";
 import { MAX_PRODUCT_URL_INPUT_LENGTH, normalizeProductUrl } from "@/lib/product-url";
-import { getSupabaseAdmin, getWishlistId } from "@/lib/supabase-admin";
+import { getSupabaseAdmin, MATS_WISHLIST_ID } from "@/lib/supabase-admin";
 
 const nullableImage = z.union([z.string().trim().url().max(2048), z.string().trim().regex(/^\/products\/[A-Za-z0-9._/-]+$/)]).nullable();
 const draft = z.object({
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
   if (!isAdminRequest(request)) return unauthorized();
   const supabase = getSupabaseAdmin();
   if (!supabase) return Response.json({ error: "Supabase ist nicht eingerichtet." }, { status: 503 });
-  const wishlistId = getWishlistId();
+  const wishlistId = MATS_WISHLIST_ID;
   const [{ data: rows, error }, { data: reservations, error: reservationError }] = await Promise.all([
     supabase.from("wishes").select("id,title,description,product_url,image_url,price_amount,currency,shop_name,sort_order,archived_at").eq("wishlist_id", wishlistId).order("sort_order"),
     supabase.from("reservations").select("wish_id").is("cancelled_at", null),
@@ -55,11 +55,11 @@ export async function POST(request: Request) {
   if (!supabase) return Response.json({ error: "Supabase ist nicht eingerichtet." }, { status: 503 });
   let stored: Awaited<ReturnType<typeof storeProductImage>> | null = null;
   try {
-    stored = await storeProductImage(parsed.data.imageUrl);
-    const { data: last, error: orderError } = await supabase.from("wishes").select("sort_order").eq("wishlist_id", getWishlistId()).is("archived_at", null).order("sort_order", { ascending: false }).limit(1).maybeSingle();
+    stored = await storeProductImage(MATS_WISHLIST_ID, parsed.data.imageUrl);
+    const { data: last, error: orderError } = await supabase.from("wishes").select("sort_order").eq("wishlist_id", MATS_WISHLIST_ID).is("archived_at", null).order("sort_order", { ascending: false }).limit(1).maybeSingle();
     if (orderError) throw new Error(orderError.message);
     const { data, error } = await supabase.from("wishes").insert({
-      wishlist_id: getWishlistId(),
+      wishlist_id: MATS_WISHLIST_ID,
       title: parsed.data.title,
       description: parsed.data.description || null,
       product_url: normalizeProductUrl(parsed.data.productUrl),
@@ -84,6 +84,6 @@ export async function PUT(request: Request) {
   if (!parsed.success || new Set(parsed.data.orderedIds).size !== parsed.data.orderedIds.length) return Response.json({ error: "Die Reihenfolge ist ungültig." }, { status: 400 });
   const supabase = getSupabaseAdmin();
   if (!supabase) return Response.json({ error: "Supabase ist nicht eingerichtet." }, { status: 503 });
-  const { error } = await supabase.rpc("reorder_wishes", { p_wishlist_id: getWishlistId(), p_ordered_ids: parsed.data.orderedIds });
+  const { error } = await supabase.rpc("reorder_wishes", { p_wishlist_id: MATS_WISHLIST_ID, p_ordered_ids: parsed.data.orderedIds });
   return error ? Response.json({ error: error.message }, { status: 422 }) : Response.json({ ok: true });
 }

@@ -1,30 +1,41 @@
 {
-  "name": "wunschwebseite-baby",
+  "name": "wuenschi",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
+    "cloudflare:build": "opennextjs-cloudflare build",
+    "cloudflare:preview": "opennextjs-cloudflare build && wrangler dev",
+    "cloudflare:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "cloudflare:types": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:staging": "node --env-file=.env.staging.local scripts/run-staging-acceptance.mjs"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.110.7",
-    "next": "16.2.10",
+    "next": "^16.2.11",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "^1.20.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "esbuild": "^0.28.2",
     "eslint": "^9",
-    "eslint-config-next": "16.2.10",
+    "eslint-config-next": "^16.2.11",
     "supabase": "^2.109.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.10",
+    "wrangler": "^4.120.0"
   },
   "overrides": {
     "postcss": "8.5.20"

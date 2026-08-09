@@ -15,6 +15,7 @@
 
 # next.js
 /.next/
+/.open-next/
 /out/
 
 # production
@@ -34,9 +35,19 @@ yarn-error.log*
 .env*
 !.env.example
 
+# Cloudflare Workers local secrets
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+/.wrangler/
+
 # vercel
 .vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Private, generated migration-baseline evidence. Never commit guest names,
+# password hashes, or storage metadata captured from a live project.
+/.baseline/

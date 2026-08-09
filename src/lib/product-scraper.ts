@@ -1,7 +1,6 @@
 import "server-only";
 
-import { resolve4, resolve6 } from "node:dns/promises";
-import { isIP } from "node:net";
+import { readResponseBytes, requestPublicUrl, responseHeader, resolvePublicUrl } from "@/lib/secure-public-fetch";
 
 export type ImportedProduct = {
   title: string;
@@ -13,70 +12,20 @@ export type ImportedProduct = {
   sourceUrl: string;
 };
 
-function isPrivate(address: string) {
-  const value = address.toLowerCase();
-  if (value.startsWith("::ffff:")) return isPrivate(value.slice(7));
-  if (value.includes(":")) return value === "::" || value === "::1" || value.startsWith("fc") || value.startsWith("fd") || /^fe[89ab]/.test(value) || value.startsWith("2001:db8:");
-  const [a, b] = value.split(".").map(Number);
-  return a === 0 || a === 10 || a === 127 || (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && (b === 0 || b === 168)) || (a === 198 && (b === 18 || b === 19 || b === 51)) || (a === 203 && b === 0) || a >= 224;
-}
-
-async function readHtml(response: Response) {
-  const limit = 3_000_000;
-  if (!response.body) return "";
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let size = 0;
-  let html = "";
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    const remaining = limit - size;
-    if (value.byteLength > remaining) {
-      html += decoder.decode(value.subarray(0, remaining), { stream: true });
-      await reader.cancel();
-      return html + decoder.decode();
-    }
-    size += value.byteLength;
-    html += decoder.decode(value, { stream: true });
-  }
-  return html + decoder.decode();
-}
-
-async function validateUrl(value: string) {
-  const url = new URL(value);
-  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error("Nur öffentliche HTTP- und HTTPS-Links sind erlaubt.");
-  const host = url.hostname.toLowerCase().replace(/\.$/, "");
-  if (host === "localhost" || host.endsWith(".local") || host.endsWith(".localhost")) throw new Error("Lokale Adressen sind nicht erlaubt.");
-  if (isIP(host)) {
-    if (isPrivate(host)) throw new Error("Private Netzwerkadressen sind nicht erlaubt.");
-  } else {
-    const [v4, v6] = await Promise.all([resolve4(host).catch(() => []), resolve6(host).catch(() => [])]);
-    const addresses = [...v4, ...v6];
-    if (!addresses.length || addresses.some(isPrivate)) throw new Error("Die Zieladresse konnte nicht sicher aufgelöst werden.");
-  }
-  url.hash = "";
-  return url;
-}
-
 async function loadHtml(value: string) {
-  let url = await validateUrl(value);
+  let url = (await resolvePublicUrl(value)).url;
   for (let redirect = 0; redirect <= 3; redirect += 1) {
-    const response = await fetch(url, {
-      cache: "no-store",
-      redirect: "manual",
-      signal: AbortSignal.timeout(8_000),
-      headers: { Accept: "text/html,application/xhtml+xml", "User-Agent": "Mozilla/5.0 (compatible; WunschlistenImporter/1.0)" },
-    });
+    const response = await requestPublicUrl(url, { accept: "text/html,application/xhtml+xml", userAgent: "Mozilla/5.0 (compatible; WunschlistenImporter/1.0)", timeoutMs: 8_000 });
     if (response.status >= 300 && response.status < 400) {
-      const location = response.headers.get("location");
+      const location = responseHeader(response.headers, "location");
+      response.body.destroy();
       if (!location || redirect === 3) throw new Error("Zu viele Weiterleitungen.");
-      url = await validateUrl(new URL(location, url).toString());
+      url = (await resolvePublicUrl(new URL(location, url).toString())).url;
       continue;
     }
-    if (!response.ok) throw new Error(`Der Shop antwortet mit Status ${response.status}.`);
-    if (!(response.headers.get("content-type") ?? "").includes("html")) throw new Error("Der Link verweist nicht auf eine Produktseite.");
-    const html = await readHtml(response);
+    if (response.status < 200 || response.status >= 300) { response.body.destroy(); throw new Error(`Der Shop antwortet mit Status ${response.status}.`); }
+    if (!responseHeader(response.headers, "content-type").includes("html")) { response.body.destroy(); throw new Error("Der Link verweist nicht auf eine Produktseite."); }
+    const html = (await readResponseBytes(response, 3_000_000)).toString("utf8");
     return { html, url };
   }
   throw new Error("Die Produktseite konnte nicht geladen werden.");

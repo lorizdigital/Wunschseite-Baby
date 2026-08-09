@@ -2,7 +2,7 @@ import { z } from "zod";
 import { isAdminRequest } from "@/lib/admin-auth";
 import { removeStoredProductImage, storeProductImage } from "@/lib/product-image-storage";
 import { MAX_PRODUCT_URL_INPUT_LENGTH, normalizeProductUrl } from "@/lib/product-url";
-import { getSupabaseAdmin, getWishlistId } from "@/lib/supabase-admin";
+import { getSupabaseAdmin, MATS_WISHLIST_ID } from "@/lib/supabase-admin";
 
 const input = z.object({
   title: z.string().trim().min(1).max(180).optional(),
@@ -47,7 +47,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   let stored: Awaited<ReturnType<typeof storeProductImage>> | null = null;
   if (parsed.data.imageUrl !== undefined) {
     try {
-      stored = await storeProductImage(parsed.data.imageUrl);
+      stored = await storeProductImage(MATS_WISHLIST_ID, parsed.data.imageUrl);
       update.image_url = stored.url;
     } catch (reason) {
       return Response.json({ error: reason instanceof Error ? reason.message : "Das Produktbild konnte nicht gespeichert werden." }, { status: 422 });
@@ -56,11 +56,11 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   if (parsed.data.archived !== undefined) {
     update.archived_at = parsed.data.archived ? new Date().toISOString() : null;
     if (!parsed.data.archived) {
-      const { data: last } = await supabase.from("wishes").select("sort_order").eq("wishlist_id", getWishlistId()).is("archived_at", null).order("sort_order", { ascending: false }).limit(1).maybeSingle();
+      const { data: last } = await supabase.from("wishes").select("sort_order").eq("wishlist_id", MATS_WISHLIST_ID).is("archived_at", null).order("sort_order", { ascending: false }).limit(1).maybeSingle();
       update.sort_order = Number(last?.sort_order ?? 0) + 10;
     }
   }
-  const { data, error } = await supabase.from("wishes").update(update).eq("id", id).eq("wishlist_id", getWishlistId()).select("id").maybeSingle();
+  const { data, error } = await supabase.from("wishes").update(update).eq("id", id).eq("wishlist_id", MATS_WISHLIST_ID).select("id").maybeSingle();
   if (error || !data) {
     await removeStoredProductImage(stored?.path ?? null);
     return Response.json({ error: error?.message ?? "Der Wunsch wurde nicht gefunden." }, { status: error ? 422 : 404 });
