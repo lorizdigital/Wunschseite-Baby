@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
+import { ACCESS_CODE_MAX_LENGTH, ACCESS_CODE_MIN_LENGTH } from "@/lib/access-code";
 import { isAdminRequest } from "@/lib/admin-auth";
 import { createStoredMatsAccessCodeHash } from "@/lib/public-wishlist-access";
 import { getSupabaseAdmin, MATS_WISHLIST_ID } from "@/lib/supabase-admin";
 
 export const runtime = "nodejs";
 
-const input = z.object({ accessCode: z.string().trim().min(8).max(64) }).strict();
+const input = z.object({ accessCode: z.string().trim().min(ACCESS_CODE_MIN_LENGTH).max(ACCESS_CODE_MAX_LENGTH) }).strict();
 
 export async function POST(request: Request) {
   if (!isAdminRequest(request)) return Response.json({ error: "Der Admin-Code fehlt oder ist falsch." }, { status: 401 });

@@ -211,6 +211,11 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .secret-visibility-button:hover { background: var(--sage-pale); color: var(--sage-dark); }
 .secret-visibility-button:focus-visible { box-shadow: 0 0 0 3px rgba(114,139,121,.3); outline: none; }
 .secret-visibility-button svg { fill: none; height: 19px; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; width: 19px; }
+.access-code-input-group { min-width: 0; }
+.field-validation { font-size: 12px; line-height: 1.4; margin: 7px 2px 0; }
+.field-validation-hint { color: var(--muted); }
+.field-validation-error { color: #a03f34; font-weight: 700; }
+.field-validation-success { color: #376047; font-weight: 700; }
 .field-help { color: var(--muted); font-size: 11px; margin: 8px 0 0; }
 .success-panel { text-align: center; }
 .success-icon { align-items: center; background: var(--sage); border-radius: 50%; color: white; display: inline-flex; font-size: 25px; height: 56px; justify-content: center; margin-bottom: 18px; width: 56px; }

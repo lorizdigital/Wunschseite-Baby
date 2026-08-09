@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { NextRequest } from "next/server";
+import { ACCESS_CODE_MAX_LENGTH, ACCESS_CODE_MIN_LENGTH } from "@/lib/access-code";
 import { wishlistIdSchema } from "@/lib/app-wishlist-data";
 import { getAuthenticatedRoute, privateJson } from "@/lib/app-route-auth";
 import { isFeatureEnabled } from "@/lib/app-config";
@@ -8,7 +9,7 @@ import { isJsonRequest, isSameAppOrigin } from "@/lib/request-security";
 
 export const dynamic = "force-dynamic";
 
-const accessCodeInput = z.object({ accessCode: z.string().trim().min(8).max(64) }).strict();
+const accessCodeInput = z.object({ accessCode: z.string().trim().min(ACCESS_CODE_MIN_LENGTH).max(ACCESS_CODE_MAX_LENGTH) }).strict();
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!isFeatureEnabled("MULTI_WISHLIST_ENABLED")) return privateJson({ error: "Nicht gefunden." }, 404);

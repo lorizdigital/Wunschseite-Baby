@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import type { AppWishlist, AppWishlistMember, AppWish } from "@/lib/app-wishlist-data";
+import { ACCESS_CODE_MAX_LENGTH, ACCESS_CODE_MIN_LENGTH, validateAccessCode } from "@/lib/access-code";
 
 type Invitation = {
   id: string;
@@ -127,6 +128,7 @@ export function WishlistManager({
   const isArchived = Boolean(wishlist.archivedAt);
   const activeWishes = useMemo(() => wishes.filter((wish) => !wish.archivedAt).sort((a, b) => a.sortOrder - b.sortOrder), [wishes]);
   const archivedWishes = useMemo(() => wishes.filter((wish) => wish.archivedAt), [wishes]);
+  const accessCodeValidation = validateAccessCode(accessCode);
 
   useEffect(() => {
     if (!isOwner) return;
@@ -230,6 +232,7 @@ export function WishlistManager({
 
   async function saveAccessCode(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!accessCodeValidation.valid) { setError(accessCodeValidation.message); return; }
     start("access-code");
     try {
       const data = await requestJson<{ accessCodeSet: boolean }>(`/api/app/wishlists/${wishlist.id}/access-code`, "POST", { accessCode });
@@ -334,7 +337,7 @@ export function WishlistManager({
 
     {isOwner && <section className="import-panel"><div className="admin-section-head"><div><p className="eyebrow">Liste</p><h2>Deine Worte</h2></div></div><form onSubmit={saveDetails} className="admin-stack"><label className="admin-field">Titel<input value={title} maxLength={180} required disabled={isArchived || pending !== null} onChange={(event) => setTitle(event.target.value)} /></label><label className="admin-field">Einleitung <span>optional</span><textarea value={intro} maxLength={2000} rows={4} disabled={isArchived || pending !== null} onChange={(event) => setIntro(event.target.value)} /></label><div className="admin-form-actions"><button className="primary-button" disabled={isArchived || pending !== null}>{pending === "details" ? "Speichert …" : "Texte speichern"}</button></div></form></section>}
 
-    {isOwner && <section className="import-panel"><div className="admin-section-head"><div><p className="eyebrow">Code-Schutz</p><h2>Liste zusätzlich schützen</h2></div></div><p>{wishlist.accessCodeSet ? "Ein Zugangscode ist eingerichtet. Du kannst ihn hier jederzeit durch einen neuen ersetzen; bisherige Freigaben verlieren dann ihre Gültigkeit." : "Lege vor der Veröffentlichung einen Zugangscode mit mindestens 8 Zeichen fest. Teile ihn getrennt vom Link."}</p><form className="import-form" onSubmit={saveAccessCode}><input type="password" required minLength={8} maxLength={64} autoComplete="new-password" value={accessCode} disabled={isArchived || pending !== null} placeholder="Neuen Zugangscode festlegen" onChange={(event) => setAccessCode(event.target.value)} /><button className="secondary-button" disabled={isArchived || pending !== null}>{pending === "access-code" ? "Speichert …" : wishlist.accessCodeSet ? "Code ändern" : "Code speichern"}</button></form></section>}
+    {isOwner && <section className="import-panel"><div className="admin-section-head"><div><p className="eyebrow">Code-Schutz</p><h2>Liste zusätzlich schützen</h2></div></div><p>{wishlist.accessCodeSet ? "Ein Zugangscode ist eingerichtet. Du kannst ihn hier jederzeit durch einen neuen ersetzen; bisherige Freigaben verlieren dann ihre Gültigkeit." : "Lege vor der Veröffentlichung einen Zugangscode mit mindestens 8 Zeichen fest. Teile ihn getrennt vom Link."}</p><form className="import-form" onSubmit={saveAccessCode}><div className="access-code-input-group"><input type="password" required minLength={ACCESS_CODE_MIN_LENGTH} maxLength={ACCESS_CODE_MAX_LENGTH} autoComplete="new-password" value={accessCode} disabled={isArchived || pending !== null} placeholder="Neuen Zugangscode festlegen" aria-describedby="wishlist-access-code-validation" aria-invalid={accessCode.length > 0 && !accessCodeValidation.valid} onChange={(event) => setAccessCode(event.target.value)} /><p id="wishlist-access-code-validation" className={`field-validation field-validation-${accessCodeValidation.kind}`} aria-live="polite">{accessCodeValidation.message}</p></div><button className="secondary-button" disabled={isArchived || pending !== null || !accessCodeValidation.valid}>{pending === "access-code" ? "Speichert …" : wishlist.accessCodeSet ? "Code ändern" : "Code speichern"}</button></form></section>}
 
     {isOwner && <section className="import-panel"><div className="admin-section-head"><div><p className="eyebrow">Freigabe</p><h2>Mit Familie teilen</h2></div></div><p>{wishlist.publishedAt && wishlist.publicSlug ? "Deine Liste ist veröffentlicht. Zum Öffnen werden Link und Zugangscode benötigt." : publicationEnabled ? "Prüfe den Auftritt zuerst in der privaten Vorschau. Danach kannst du die Liste mit ihrem persönlichen Link und Zugangscode veröffentlichen." : "Die Veröffentlichung ist für diese geschlossene Beta noch nicht freigeschaltet."}</p><div className="admin-form-actions"><a className="secondary-button" href={`/app/lists/${wishlist.id}/preview`} target="_blank" rel="noreferrer">Private Vorschau öffnen</a></div>{wishlist.publishedAt && wishlist.publicSlug && <><div className="share-link-row"><input readOnly value={shareUrl} aria-label="Freigabelink" /><a className="secondary-button" href={`/w/${wishlist.publicSlug}`} target="_blank" rel="noreferrer">Öffnen</a></div><div className="admin-form-actions"><button className="secondary-button" type="button" onClick={() => void rotateLink()} disabled={isArchived || pending !== null}>{pending === "share-link" ? "Erneuert …" : "Link erneuern"}</button></div></>}{publicationEnabled && !wishlist.publishedAt && <div className="admin-form-actions"><button className="primary-button" type="button" disabled={isArchived || pending !== null || activeWishes.length === 0 || !wishlist.accessCodeSet} onClick={() => void publish()}>{pending === "publish" ? "Veröffentlicht …" : wishlist.accessCodeSet ? "Jetzt veröffentlichen" : "Zuerst Zugangscode festlegen"}</button></div>}{isArchived && <p className="form-error">Diese Liste ist archiviert und kann nicht weiter bearbeitet werden.</p>}</section>}
 

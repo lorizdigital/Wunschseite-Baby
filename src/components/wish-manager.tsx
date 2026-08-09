@@ -4,6 +4,7 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import type { AdminWish, WishDraft } from "@/lib/admin-types";
+import { ACCESS_CODE_MAX_LENGTH, ACCESS_CODE_MIN_LENGTH, validateAccessCode } from "@/lib/access-code";
 
 type ProductPreview = {
   title: string;
@@ -57,6 +58,7 @@ export function WishManager() {
 
   const active = useMemo(() => wishes.filter((wish) => !wish.archived), [wishes]);
   const archived = useMemo(() => wishes.filter((wish) => wish.archived), [wishes]);
+  const matsAccessCodeValidation = validateAccessCode(matsAccessCode);
 
   async function adminRequest(path: string, init: RequestInit = {}) {
     const response = await fetch(path, {
@@ -130,7 +132,9 @@ export function WishManager() {
   }
 
   async function saveMatsAccessCode(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setPending(true); setError(""); setMessage("");
+    event.preventDefault();
+    if (!matsAccessCodeValidation.valid) { setError(matsAccessCodeValidation.message); return; }
+    setPending(true); setError(""); setMessage("");
     try {
       const payload = await adminRequest("/api/admin/mats-access-code", { method: "POST", body: JSON.stringify({ accessCode: matsAccessCode }) }) as { accessCodeSet?: boolean; error?: string };
       if (!payload.accessCodeSet) throw new Error(payload.error ?? "Der Zugangscode konnte nicht gespeichert werden.");
@@ -169,8 +173,8 @@ export function WishManager() {
 
     <section className="import-panel"><p className="eyebrow">Code-Schutz</p><h2>Zugang für Mats festlegen</h2><p>Dieser Code schützt ausschließlich die Liste für Mats. Er ersetzt den bisherigen Code sofort; offene Browser-Freigaben verlieren dadurch ihre Gültigkeit.</p>
       <form className="import-form" onSubmit={saveMatsAccessCode}>
-        <div className="secret-input"><input aria-label="Zugangscode für Mats" type={matsAccessCodeVisible ? "text" : "password"} required minLength={8} maxLength={64} autoComplete="new-password" placeholder="Neuen Zugangscode festlegen" value={matsAccessCode} onChange={(event) => setMatsAccessCode(event.target.value)} /><button className="secret-visibility-button" type="button" onClick={() => setMatsAccessCodeVisible((visible) => !visible)} aria-label={matsAccessCodeVisible ? "Zugangscode verbergen" : "Zugangscode anzeigen"} aria-pressed={matsAccessCodeVisible}><VisibilityIcon visible={matsAccessCodeVisible} /></button></div>
-        <button className="secondary-button" disabled={pending}>{pending ? "Speichert …" : "Code speichern"}</button>
+        <div className="access-code-input-group"><div className="secret-input"><input aria-label="Zugangscode für Mats" aria-describedby="mats-access-code-validation" aria-invalid={matsAccessCode.length > 0 && !matsAccessCodeValidation.valid} type={matsAccessCodeVisible ? "text" : "password"} required minLength={ACCESS_CODE_MIN_LENGTH} maxLength={ACCESS_CODE_MAX_LENGTH} autoComplete="new-password" placeholder="Neuen Zugangscode festlegen" value={matsAccessCode} onChange={(event) => setMatsAccessCode(event.target.value)} /><button className="secret-visibility-button" type="button" onClick={() => setMatsAccessCodeVisible((visible) => !visible)} aria-label={matsAccessCodeVisible ? "Zugangscode verbergen" : "Zugangscode anzeigen"} aria-pressed={matsAccessCodeVisible}><VisibilityIcon visible={matsAccessCodeVisible} /></button></div><p id="mats-access-code-validation" className={`field-validation field-validation-${matsAccessCodeValidation.kind}`} aria-live="polite">{matsAccessCodeValidation.message}</p></div>
+        <button className="secondary-button" disabled={pending || !matsAccessCodeValidation.valid}>{pending ? "Speichert …" : "Code speichern"}</button>
       </form>
     </section>
 
