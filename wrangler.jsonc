@@ -2,11 +2,25 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "main": ".open-next/worker.js",
   "name": "wuenschi",
+  "workers_dev": false,
   "compatibility_date": "2026-08-09",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
+  },
+  "routes": [
+    {
+      "pattern": "www.wünschi.de/*",
+      "zone_name": "xn--wnschi-3ya.de"
+    },
+    {
+      "pattern": "wünschi.de/*",
+      "zone_name": "xn--wnschi-3ya.de"
+    }
+  ],
+  "vars": {
+    "BREVO_SENDER_NAME": "Wünschi"
   },
   "observability": {
     "enabled": true

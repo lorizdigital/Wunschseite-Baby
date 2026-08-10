@@ -1,12 +1,15 @@
 import "server-only";
 
-import { request as httpRequest } from "node:http";
-import { request as httpsRequest } from "node:https";
 import { resolve4, resolve6 } from "node:dns/promises";
 import { isIP } from "node:net";
-import type { IncomingHttpHeaders, IncomingMessage } from "node:http";
 
-export type PublicResponse = { status: number; headers: IncomingHttpHeaders; body: IncomingMessage };
+export type PublicResponse = {
+  status: number;
+  headers: Headers;
+  body: ReadableStream<Uint8Array> | null;
+  cancel: () => void;
+  finish: () => void;
+};
 
 function isPrivateAddress(address: string) {
   const value = address.toLowerCase();
@@ -38,52 +41,71 @@ export async function resolvePublicUrl(value: string) {
   return { url, target: await resolvePublicAddress(url.hostname) };
 }
 
-/**
- * Fetches through the vetted IP address instead of asking the network stack to
- * resolve the host again. This keeps a DNS-rebinding response from redirecting
- * an importer to a private network after validation.
- */
+/** Cloudflare's `global_fetch_strictly_public` flag enforces the same public
+ * network boundary during the actual fetch. The explicit lookup keeps invalid
+ * and private targets rejected consistently before any request is started. */
 export async function requestPublicUrl(value: string | URL, options: { accept: string; userAgent: string; timeoutMs: number }) {
-  const { url, target } = await resolvePublicUrl(value.toString());
-  const request = url.protocol === "https:" ? httpsRequest : httpRequest;
-  return await new Promise<PublicResponse>((resolve, reject) => {
-    const networkRequest = request({
-      protocol: url.protocol,
-      hostname: target.address,
-      family: target.family,
-      port: url.port || undefined,
-      path: `${url.pathname}${url.search}`,
+  const { url } = await resolvePublicUrl(value.toString());
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(new Error("Der externe Server antwortet nicht rechtzeitig.")), options.timeoutMs);
+  try {
+    const response = await fetch(url, {
       method: "GET",
-      servername: url.protocol === "https:" && !isIP(url.hostname.replace(/^\[|\]$/g, "")) ? url.hostname.replace(/^\[|\]$/g, "") : undefined,
-      headers: { Host: url.host, Accept: options.accept, "User-Agent": options.userAgent },
-    }, (response) => resolve({ status: response.statusCode ?? 0, headers: response.headers, body: response }));
-    networkRequest.setTimeout(options.timeoutMs, () => networkRequest.destroy(new Error("Der externe Server antwortet nicht rechtzeitig.")));
-    networkRequest.on("error", reject);
-    networkRequest.end();
-  });
+      redirect: "manual",
+      signal: controller.signal,
+      headers: { Accept: options.accept, "User-Agent": options.userAgent },
+    });
+    return {
+      status: response.status,
+      headers: response.headers,
+      body: response.body,
+      cancel() {
+        clearTimeout(timeout);
+        controller.abort();
+        void response.body?.cancel().catch(() => undefined);
+      },
+      finish() {
+        clearTimeout(timeout);
+      },
+    } satisfies PublicResponse;
+  } catch (reason) {
+    clearTimeout(timeout);
+    throw reason;
+  }
 }
 
-export function responseHeader(headers: IncomingHttpHeaders, name: string) {
-  const value = headers[name.toLowerCase()];
-  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
+export function responseHeader(headers: Headers, name: string) {
+  return headers.get(name) ?? "";
 }
 
 export async function readResponseBytes(response: PublicResponse, limit: number) {
   const declared = Number(responseHeader(response.headers, "content-length") || 0);
   if (declared > limit) {
-    response.body.destroy();
+    response.cancel();
     throw new Error("Die externe Antwort ist zu groß.");
+  }
+  if (!response.body) {
+    response.finish();
+    return Buffer.alloc(0);
   }
   const chunks: Buffer[] = [];
   let size = 0;
-  for await (const chunk of response.body) {
-    const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-    size += bytes.byteLength;
-    if (size > limit) {
-      response.body.destroy();
-      throw new Error("Die externe Antwort ist zu groß.");
+  const reader = response.body.getReader();
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const bytes = Buffer.from(value);
+      size += bytes.byteLength;
+      if (size > limit) {
+        await reader.cancel();
+        throw new Error("Die externe Antwort ist zu groß.");
+      }
+      chunks.push(bytes);
     }
-    chunks.push(bytes);
+    return Buffer.concat(chunks, size);
+  } finally {
+    response.finish();
+    reader.releaseLock();
   }
-  return Buffer.concat(chunks, size);
 }

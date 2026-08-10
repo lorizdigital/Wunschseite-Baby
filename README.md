@@ -57,13 +57,18 @@ npm run build
 | `APP_ORIGIN` | exakte öffentliche Origin, im Produktivbetrieb `https://wünschi.de` | Ja vor Veröffentlichung |
 | `INTERNAL_CRON_SECRET` | separates Geheimnis für die internen Löschläufe | Ja vor Produktivbetrieb |
 | `INTERNAL_PROVISIONING_SECRET` | separates Geheimnis für die manuelle Aufnahme in die geschlossene Beta | Ja für geschlossene Beta |
+| `BREVO_API_KEY` | serverseitiger Brevo-Key für transaktionale Einladungs-E-Mails | Ja vor aktivem E-Mail-Versand |
+| `BREVO_SENDER_EMAIL` | verifizierter Brevo-Absender; bei Template-Versand optional | Ja ohne Template |
+| `BREVO_SENDER_NAME` | sichtbarer Absendername für Inline-E-Mails | Nein |
+| `BREVO_REPLY_TO_EMAIL` | optionale Antwortadresse | Nein |
+| `BREVO_INVITATION_TEMPLATE_ID` | optionale aktive Brevo-Vorlage; ersetzt das Inline-Layout | Nein |
 | `MULTI_WISHLIST_ENABLED` | schaltet `/app`, Einladungen und Mehrlisten-APIs frei | Nein, standardmäßig `false` |
 | `SELF_SERVICE_SIGNUP_ENABLED` | schaltet `/neu` frei | Nein, standardmäßig `false` |
 | `PUBLICATION_ENABLED` | erlaubt das Veröffentlichen von Listen | Nein, standardmäßig `false` |
 | `PRODUCT_IMPORT_ENABLED` | erlaubt das serverseitige Auslesen von Produktseiten | Nein, standardmäßig `false` |
 | `LEGACY_MATS_ADMIN_ENABLED` | hält den Legacy-Admin als Rückfallweg aktiv | Nein, standardmäßig `true` |
 
-`SUPABASE_SECRET_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_IMPORT_SECRET`, `PUBLIC_WISHLIST_ACCESS_SESSION_SECRET`, `MATS_ACCESS_CODE`, `INTERNAL_CRON_SECRET` und `INTERNAL_PROVISIONING_SECRET` dürfen niemals mit `NEXT_PUBLIC_` beginnen, in den Browser gelangen oder eingecheckt werden.
+`SUPABASE_SECRET_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_IMPORT_SECRET`, `PUBLIC_WISHLIST_ACCESS_SESSION_SECRET`, `MATS_ACCESS_CODE`, `INTERNAL_CRON_SECRET`, `INTERNAL_PROVISIONING_SECRET` und `BREVO_API_KEY` dürfen niemals mit `NEXT_PUBLIC_` beginnen, in den Browser gelangen oder eingecheckt werden. Der Brevo-Absender muss im Brevo-Konto verifiziert sein.
 
 ## Sichere Inbetriebnahme
 

@@ -3,9 +3,10 @@
 import { z } from "zod";
 import { headers } from "next/headers";
 import { getAppOrigin, isFeatureEnabled } from "@/lib/app-config";
+import { isBrevoInlineEmailConfigured, sendMagicLinkEmail } from "@/lib/brevo";
 import { consumeRateLimit, getRequestClientKey } from "@/lib/rate-limit";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
-import { getAuthCallbackUrl, getSafeAuthNext, createSupabaseUserClient } from "@/lib/supabase-user";
+import { getAuthCallbackUrl, getMagicLinkConfirmUrl, getSafeAuthNext, createSupabaseUserClient } from "@/lib/supabase-user";
 
 export type LoginState = { message?: string; error?: string };
 
@@ -29,8 +30,20 @@ async function provisionPendingInviteAccount(email: string) {
   await admin.auth.admin.createUser({ email, email_confirm: true });
 }
 
+async function canSendPersonalizedMagicLink(email: string, selfServiceEnabled: boolean) {
+  if (selfServiceEnabled) return true;
+
+  const admin = getSupabaseAdmin();
+  if (!admin) return false;
+
+  const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  if (error) return false;
+
+  return data.users.some((user) => user.email?.toLowerCase() === email);
+}
+
 export async function requestMagicLink(_previous: LoginState, formData: FormData): Promise<LoginState> {
-  const parsed = loginInput.safeParse({ email: formData.get("email"), next: formData.get("next") });
+  const parsed = loginInput.safeParse({ email: formData.get("email"), next: formData.get("next") ?? undefined });
   if (!parsed.success) return { error: "Bitte gib eine gültige E-Mail-Adresse ein." };
 
   const requestHeaders = await headers();
@@ -46,13 +59,38 @@ export async function requestMagicLink(_previous: LoginState, formData: FormData
   const selfServiceEnabled = isFeatureEnabled("SELF_SERVICE_SIGNUP_ENABLED");
   if (!selfServiceEnabled) await provisionPendingInviteAccount(parsed.data.email);
 
-  await supabase.auth.signInWithOtp({
+  const callbackUrl = getAuthCallbackUrl(getSafeAuthNext(parsed.data.next));
+  const admin = getSupabaseAdmin();
+  if (admin && isBrevoInlineEmailConfigured() && await canSendPersonalizedMagicLink(parsed.data.email, selfServiceEnabled)) {
+    const { data, error } = await admin.auth.admin.generateLink({
+      type: "magiclink",
+      email: parsed.data.email,
+      options: { redirectTo: callbackUrl },
+    });
+
+    if (!error && data?.properties.hashed_token) {
+      const emailStatus = await sendMagicLinkEmail({
+        recipientEmail: parsed.data.email,
+        loginUrl: getMagicLinkConfirmUrl(data.properties.hashed_token, parsed.data.next),
+      });
+      if (emailStatus === "sent") {
+        return { message: "Falls die E-Mail-Adresse erreichbar ist, erhältst du gleich einen sicheren Anmeldelink." };
+      }
+      return { error: "Der Anmeldelink konnte gerade nicht gesendet werden. Bitte versuche es gleich noch einmal." };
+    }
+  }
+
+  const { error } = await supabase.auth.signInWithOtp({
     email: parsed.data.email,
     options: {
-      emailRedirectTo: getAuthCallbackUrl(getSafeAuthNext(parsed.data.next)),
+      emailRedirectTo: callbackUrl,
       shouldCreateUser: selfServiceEnabled,
     },
   });
+
+  if (error) {
+    return { error: "Der Anmeldelink konnte gerade nicht gesendet werden. Bitte versuche es gleich noch einmal." };
+  }
 
   return { message: "Falls die E-Mail-Adresse erreichbar ist, erhältst du gleich einen sicheren Anmeldelink." };
 }

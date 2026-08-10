@@ -48,6 +48,11 @@ ADMIN_IMPORT_SECRET
 APP_ORIGIN
 INTERNAL_CRON_SECRET
 INTERNAL_PROVISIONING_SECRET
+BREVO_API_KEY
+BREVO_SENDER_EMAIL
+BREVO_SENDER_NAME
+BREVO_REPLY_TO_EMAIL
+BREVO_INVITATION_TEMPLATE_ID
 MULTI_WISHLIST_ENABLED
 SELF_SERVICE_SIGNUP_ENABLED
 PUBLICATION_ENABLED
@@ -62,13 +67,13 @@ APP_ORIGIN=https://<staging-worker-domain>
 MULTI_WISHLIST_ENABLED=true
 SELF_SERVICE_SIGNUP_ENABLED=false
 PUBLICATION_ENABLED=true
-PRODUCT_IMPORT_ENABLED=false
+PRODUCT_IMPORT_ENABLED=true
 LEGACY_MATS_ADMIN_ENABLED=true
 ```
 
-`NEXT_PUBLIC_SUPABASE_URL` und `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` müssen bereits beim Cloudflare-Build vorhanden sein. Der Supabase-Secret-Key und alle übrigen Secrets dürfen nie mit `NEXT_PUBLIC_` beginnen.
+`NEXT_PUBLIC_SUPABASE_URL` und `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` müssen bereits beim Cloudflare-Build vorhanden sein. Der Supabase-Secret-Key und alle übrigen Secrets dürfen nie mit `NEXT_PUBLIC_` beginnen. `BREVO_API_KEY` wird als Cloudflare Secret hinterlegt. `BREVO_SENDER_EMAIL` muss in Brevo als Sender verifiziert sein; `BREVO_INVITATION_TEMPLATE_ID` ist nur erforderlich, wenn eine aktive Brevo-Vorlage statt des eingebauten Layouts verwendet wird.
 
-Für Produktion müssen URL, Publishable Key, serverseitiger Secret Key und `ADMIN_IMPORT_SECRET` aus dem Produktionsprojekt stammen. `APP_ORIGIN` ist `https://wünschi.de`; die Flags für den geschlossenen Start sind `MULTI_WISHLIST_ENABLED=true`, `SELF_SERVICE_SIGNUP_ENABLED=false`, `PUBLICATION_ENABLED=true`, `PRODUCT_IMPORT_ENABLED=false` und `LEGACY_MATS_ADMIN_ENABLED=true`.
+Für Produktion müssen URL, Publishable Key, serverseitiger Secret Key und `ADMIN_IMPORT_SECRET` aus dem Produktionsprojekt stammen. `APP_ORIGIN` ist `https://wünschi.de`; die Flags für den geschlossenen Start sind `MULTI_WISHLIST_ENABLED=true`, `SELF_SERVICE_SIGNUP_ENABLED=false`, `PUBLICATION_ENABLED=true`, `PRODUCT_IMPORT_ENABLED=true` und `LEGACY_MATS_ADMIN_ENABLED=true`.
 
 ## 4. Supabase Auth
 
@@ -81,10 +86,12 @@ https://wünschi.de
 Redirect URLs:
 https://wünschi.de/auth/callback
 https://www.wünschi.de/auth/callback
+https://xn--wnschi-3ya.de/auth/callback
+https://xn--wnschi-3ya.de/auth/callback*
 https://wuenschi.lino-loriz.workers.dev/auth/callback
 ```
 
-Zusätzlich muss der Magic-Link-E-Mail-Versand eingerichtet und getestet werden.
+Die Punycode-Varianten sind für die Umlaut-Domain verpflichtend: `new URL("https://wünschi.de").origin` wird technisch als `https://xn--wnschi-3ya.de` übertragen. Fehlen diese Einträge, verwirft Supabase die gewünschte Callback-URL und fällt auf die Site URL zurück. Zusätzlich muss der Magic-Link-E-Mail-Versand eingerichtet und getestet werden.
 
 ## 5. Staging prüfen
 
@@ -96,7 +103,8 @@ Vor der Produktion mindestens diese Abläufe testen:
 4. Liste veröffentlichen und öffentliche URL öffnen.
 5. Öffentliche Reservierung und Stornierung testen.
 6. Einladung an eine zweite E-Mail-Adresse annehmen.
-7. Mats-Legacy-Seite unter `/mats` und `/admin` auf unveränderte Funktion prüfen.
+7. Einladungs-E-Mail über Brevo an ein Staging-Testpostfach zustellen und den Link aus der E-Mail öffnen.
+8. Mats-Legacy-Seite unter `/mats` und `/admin` auf unveränderte Funktion prüfen.
 
 Die vollständige Staging-Abnahme steht in [staging-acceptance.md](staging-acceptance.md).
 
@@ -112,6 +120,8 @@ In Supabase für die Produktion die exakte Callback-URL ergänzen:
 
 ```text
 https://wünschi.de/auth/callback
+https://xn--wnschi-3ya.de/auth/callback
+https://xn--wnschi-3ya.de/auth/callback*
 ```
 
 Die Produktionsmigrationen dürfen erst nach Backup, Mats-Baseline und bestandener Staging-Abnahme ausgeführt werden. Die bestehenden Mats-Daten müssen anschließend erneut gegen die Baseline geprüft werden. Dieser Abgleich wurde am 9. August 2026 erfolgreich durchgeführt: 30 Wünsche, 9 Reservierungen und alle relevanten Fingerprints sind unverändert.

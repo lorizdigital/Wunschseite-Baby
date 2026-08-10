@@ -9,23 +9,25 @@ const allowedTypes = new Map([
   ["image/jpeg", "jpg"],
   ["image/png", "png"],
   ["image/webp", "webp"],
+  ["image/avif", "avif"],
+  ["image/gif", "gif"],
 ]);
 
 async function downloadImage(value: string) {
   let url = (await resolvePublicUrl(value)).url;
   for (let redirect = 0; redirect <= 3; redirect += 1) {
-    const response = await requestPublicUrl(url, { accept: "image/jpeg,image/png,image/webp", userAgent: "Mozilla/5.0 (compatible; WunschlistenBildimport/1.0)", timeoutMs: 12_000 });
+    const response = await requestPublicUrl(url, { accept: "image/jpeg,image/png,image/webp,image/avif,image/gif", userAgent: "Mozilla/5.0 (compatible; WunschlistenBildimport/1.0)", timeoutMs: 12_000 });
     if (response.status >= 300 && response.status < 400) {
       const location = responseHeader(response.headers, "location");
-      response.body.destroy();
+      response.cancel();
       if (!location || redirect === 3) throw new Error("Zu viele Bildweiterleitungen.");
       url = (await resolvePublicUrl(new URL(location, url).toString())).url;
       continue;
     }
-    if (response.status < 200 || response.status >= 300) { response.body.destroy(); throw new Error(`Das Produktbild antwortet mit Status ${response.status}.`); }
+    if (response.status < 200 || response.status >= 300) { response.cancel(); throw new Error(`Das Produktbild antwortet mit Status ${response.status}.`); }
     const contentType = responseHeader(response.headers, "content-type").split(";")[0].toLowerCase();
     const extension = allowedTypes.get(contentType);
-    if (!extension) { response.body.destroy(); throw new Error("Das Produktbild hat ein nicht unterstütztes Format."); }
+    if (!extension) { response.cancel(); throw new Error("Das Produktbild hat ein nicht unterstütztes Format."); }
     try { return { bytes: await readResponseBytes(response, MAX_IMAGE_SIZE), contentType, extension }; }
     catch { throw new Error("Das Produktbild ist größer als 5 MB."); }
   }

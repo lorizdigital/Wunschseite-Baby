@@ -12,7 +12,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:staging": "node --env-file=.env.staging.local scripts/run-staging-acceptance.mjs"
+    "test:staging": "node --env-file=.env.staging.local scripts/run-staging-acceptance.mjs",
+    "test:production:auth": "node --env-file=.env.local scripts/run-production-auth-acceptance.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

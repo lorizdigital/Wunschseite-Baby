@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { isFeatureEnabled, usesSecureCookies } from "@/lib/app-config";
+import { getAppOrigin, isFeatureEnabled, usesSecureCookies } from "@/lib/app-config";
 
 function getSupabaseUserConfig() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -29,15 +29,28 @@ function isHttpRequest(request: NextRequest) {
 }
 
 function needsSessionRefresh(pathname: string) {
-  return pathname === "/neu"
+  return pathname === "/login"
+    || pathname === "/neu"
     || pathname.startsWith("/app/")
     || pathname === "/app"
     || pathname.startsWith("/einladung/")
     || pathname.startsWith("/api/app/");
 }
 
+function getCanonicalHostRedirect(request: NextRequest) {
+  const canonicalOrigin = new URL(getAppOrigin());
+  if (request.nextUrl.hostname !== `www.${canonicalOrigin.hostname}`) return null;
+  if (request.method !== "GET" && request.method !== "HEAD") return null;
+
+  const canonicalUrl = new URL(`${request.nextUrl.pathname}${request.nextUrl.search}`, canonicalOrigin);
+  return NextResponse.redirect(canonicalUrl, 308);
+}
+
 /** Refreshes a session only. Every page and mutation still checks getUser/RPC. */
 export async function middleware(request: NextRequest) {
+  const canonicalRedirect = getCanonicalHostRedirect(request);
+  if (canonicalRedirect) return canonicalRedirect;
+
   if (isHttpRequest(request)) {
     const secureUrl = request.nextUrl.clone();
     secureUrl.protocol = "https:";

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getAppOrigin } from "@/lib/app-config";
 import { wishlistIdSchema } from "@/lib/app-wishlist-data";
 import { getAuthenticatedRoute, privateJson } from "@/lib/app-route-auth";
+import { sendInvitationEmail } from "@/lib/brevo";
 import { isJsonRequest, isSameAppOrigin } from "@/lib/request-security";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +41,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const parsed = inviteInput.safeParse(body);
   if (!parsed.success) return auth.json({ error: "Die Einladung ist ungültig." }, 400);
 
+  const { data: wishlist, error: wishlistError } = await auth.supabase
+    .from("wishlists")
+    .select("title")
+    .eq("id", id)
+    .maybeSingle();
+  if (wishlistError || !wishlist) return auth.json({ error: "Die Wunschliste wurde nicht gefunden." }, 404);
+
   const token = randomBytes(32).toString("base64url");
   const tokenHash = `\\x${createHash("sha256").update(token).digest("hex")}`;
   const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString();
@@ -52,8 +60,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   });
   if (error || !data?.[0]) return auth.json({ error: "Die Einladung konnte nicht erstellt werden." }, 422);
 
+  const acceptUrl = `${getAppOrigin()}/einladung/${encodeURIComponent(token)}`;
+  const emailStatus = await sendInvitationEmail({
+    recipientEmail: parsed.data.email.trim().toLowerCase(),
+    wishlistTitle: String(wishlist.title ?? ""),
+    role: parsed.data.role,
+    acceptUrl,
+  });
+
   return auth.json({
     invitation: data[0],
-    acceptUrl: `${getAppOrigin()}/einladung/${encodeURIComponent(token)}`,
+    acceptUrl,
+    emailStatus,
   }, 201);
 }

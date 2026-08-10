@@ -24,7 +24,8 @@ const stagingDatabaseUrl = process.env.STAGING_DATABASE_URL;
 const cleanupConfirmation = process.env.STAGING_CLEANUP_CONFIRMATION;
 // The existing Mats project is never an acceptance-test target. Keep this
 // project-specific guard even if a staging env file is copied by mistake.
-const productionProjectRefs = new Set(["wqgrlzrvwkwnydhcfcch"]);
+const productionProjectRefs = new Set(["nnrkbdduiiebdahwcofa"]);
+const expectedStagingProjectRef = "jmuyamvkiirdxsvglxfa";
 const acceptanceEmailDomain = "staging-acceptance.invalid";
 
 // This SQL intentionally contains no interpolated values. The only selector is
@@ -116,6 +117,7 @@ function requireSingleRow(data, label) {
 function validateProjectRef(value) {
   assert(typeof value === "string" && /^[a-z0-9]{20}$/.test(value), "STAGING_SUPABASE_PROJECT_REF ist ungültig.");
   assert(!productionProjectRefs.has(value), "Die konfigurierte Projektkennung gehört zum Produktionsprojekt; Test wird abgebrochen.");
+  assert(value === expectedStagingProjectRef, "Der Abnahmetest darf ausschließlich das fest hinterlegte Staging-Projekt verwenden.");
   return value;
 }
 

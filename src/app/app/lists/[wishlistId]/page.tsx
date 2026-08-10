@@ -15,7 +15,7 @@ export default async function WishlistManagementPage({ params }: { params: Promi
   const { wishlist: list, wishes, members, user } = detail;
 
   const state = list.archivedAt ? "archiviert" : list.publishedAt ? "veröffentlicht" : "im Entwurf";
-  return <main className="admin-page"><div className="admin-wrap">
+  return <main className="admin-page list-admin-page"><div className="admin-wrap">
     <Link className="brand" href="/app">← Meine Listen</Link>
     <header className="admin-head"><p className="eyebrow">{list.role} · {state}</p><h1>{list.title}</h1><p>{list.intro || "Diese Liste hat noch keine Einleitung."}</p></header>
     <WishlistManager initialWishlist={list} initialWishes={wishes} initialMembers={members} currentUserId={user.id} publicationEnabled={isFeatureEnabled("PUBLICATION_ENABLED")} productImportEnabled={isFeatureEnabled("PRODUCT_IMPORT_ENABLED")} appOrigin={getAppOrigin()} />
