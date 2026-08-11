@@ -4,6 +4,8 @@ import { z } from "zod";
 import { getAppOrigin } from "@/lib/app-config";
 import { wishlistIdSchema } from "@/lib/app-wishlist-data";
 import { getAuthenticatedRoute, privateJson } from "@/lib/app-route-auth";
+import { sendInvitationEmail } from "@/lib/brevo";
+import { consumeRateLimit } from "@/lib/rate-limit";
 import { isJsonRequest, isSameAppOrigin } from "@/lib/request-security";
 
 export const dynamic = "force-dynamic";
@@ -39,6 +41,29 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   try { body = await request.json(); } catch { return auth.json({ error: "Ungültige Anfrage." }, 400); }
   const parsed = inviteInput.safeParse(body);
   if (!parsed.success) return auth.json({ error: "Die Einladung ist ungültig." }, 400);
+  const recipientEmail = parsed.data.email.trim().toLowerCase();
+
+  const { data: membership, error: membershipError } = await auth.supabase
+    .from("wishlist_members")
+    .select("role")
+    .eq("wishlist_id", id)
+    .eq("user_id", auth.user.id)
+    .maybeSingle();
+  if (membershipError || membership?.role !== "owner") return auth.json({ error: "Nicht gefunden." }, 404);
+
+  const invitationLimit = await consumeRateLimit("wishlist-invitation-send", `${auth.user.id}:${id}`, 10, 60 * 60);
+  if (invitationLimit === false) return auth.json({ error: "Bitte warte einen Moment, bevor du weitere Einladungen verschickst." }, 429);
+  if (invitationLimit === null) return auth.json({ error: "Der Einladungsversand ist kurzzeitig nicht verfügbar." }, 503);
+  const recipientLimit = await consumeRateLimit("wishlist-invitation-recipient", `${auth.user.id}:${recipientEmail}`, 3, 24 * 60 * 60);
+  if (recipientLimit === false) return auth.json({ error: "An diese Adresse wurden heute bereits mehrere Einladungen verschickt." }, 429);
+  if (recipientLimit === null) return auth.json({ error: "Der Einladungsversand ist kurzzeitig nicht verfügbar." }, 503);
+
+  const { data: wishlist, error: wishlistError } = await auth.supabase
+    .from("wishlists")
+    .select("title")
+    .eq("id", id)
+    .maybeSingle();
+  if (wishlistError || !wishlist) return auth.json({ error: "Die Wunschliste wurde nicht gefunden." }, 404);
 
   const token = randomBytes(32).toString("base64url");
   const tokenHash = `\\x${createHash("sha256").update(token).digest("hex")}`;
@@ -52,8 +77,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   });
   if (error || !data?.[0]) return auth.json({ error: "Die Einladung konnte nicht erstellt werden." }, 422);
 
+  const acceptUrl = `${getAppOrigin()}/einladung/${encodeURIComponent(token)}`;
+  const emailStatus = await sendInvitationEmail({
+    recipientEmail,
+    wishlistTitle: String(wishlist.title ?? ""),
+    role: parsed.data.role,
+    acceptUrl,
+  });
+
   return auth.json({
     invitation: data[0],
-    acceptUrl: `${getAppOrigin()}/einladung/${encodeURIComponent(token)}`,
+    acceptUrl,
+    emailStatus,
   }, 201);
 }

@@ -2,11 +2,46 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "main": ".open-next/worker.js",
   "name": "wuenschi",
+  "workers_dev": false,
+  "keep_vars": true,
   "compatibility_date": "2026-08-09",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
+  },
+  "routes": [
+    {
+      "pattern": "www.wünschi.de/*",
+      "zone_name": "xn--wnschi-3ya.de"
+    },
+    {
+      "pattern": "wünschi.de/*",
+      "zone_name": "xn--wnschi-3ya.de"
+    }
+  ],
+  "vars": {
+    "BREVO_SENDER_NAME": "Wünschi"
+  },
+  "secrets": {
+    "required": [
+      "ADMIN_IMPORT_SECRET",
+      "APP_ORIGIN",
+      "BREVO_API_KEY",
+      "BREVO_SENDER_EMAIL",
+      "INTERNAL_CRON_SECRET",
+      "INTERNAL_PROVISIONING_SECRET",
+      "LEGACY_MATS_ADMIN_ENABLED",
+      "MATS_ACCESS_CODE",
+      "MATS_ACCESS_CODE_VERSION",
+      "MULTI_WISHLIST_ENABLED",
+      "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+      "NEXT_PUBLIC_SUPABASE_URL",
+      "PRODUCT_IMPORT_ENABLED",
+      "PUBLICATION_ENABLED",
+      "PUBLIC_WISHLIST_ACCESS_SESSION_SECRET",
+      "SUPABASE_SECRET_KEY"
+    ]
   },
   "observability": {
     "enabled": true

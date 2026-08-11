@@ -15,6 +15,9 @@ export async function PATCH(request: NextRequest) {
   const parsed = input.safeParse(body);
   if (!parsed.success) return auth.json({ error: "Bitte gib einen Namen mit höchstens 80 Zeichen ein." }, 400);
   const { data, error } = await auth.supabase.rpc("update_my_profile_v1", { p_display_name: parsed.data.displayName });
-  if (error || !data?.[0]) return auth.json({ error: "Der Anzeigename konnte nicht gespeichert werden." }, 422);
+  if (error || !data?.[0]) {
+    console.error("update_my_profile_v1 failed", { code: error?.code ?? "missing_result" });
+    return auth.json({ error: "Der Anzeigename konnte nicht gespeichert werden." }, 422);
+  }
   return auth.json({ profile: data[0] });
 }

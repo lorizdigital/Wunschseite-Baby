@@ -1,11 +1,11 @@
-# Geschlossene Beta: Familie aufnehmen
+# Testfamilie manuell anlegen
 
-Dieser Ablauf dient ausschließlich zum kontrollierten Anlegen einer **neuen** Testfamilie, solange `SELF_SERVICE_SIGNUP_ENABLED=false` ist. Er erstellt genau ein Elternkonto, eine Entwurfsliste und eine Owner-Mitgliedschaft. Mats’ Liste und vorhandene Nutzer werden nicht berührt.
+Dieser optionale Operator-Ablauf dient zum kontrollierten Anlegen einer **neuen** Testfamilie ohne den öffentlichen Registrierungsweg. Er erstellt genau ein Elternkonto, eine Entwurfsliste und eine Owner-Mitgliedschaft. Mats’ Liste und vorhandene Nutzer werden nicht berührt.
 
 ## Voraussetzungen
 
 - Zuerst gegen Staging testen, nicht gegen Mats’ Produktion.
-- `MULTI_WISHLIST_ENABLED=true` und `SELF_SERVICE_SIGNUP_ENABLED=false` setzen.
+- `MULTI_WISHLIST_ENABLED=true` setzen.
 - Einen zufälligen, separaten Wert für `INTERNAL_PROVISIONING_SECRET` hinterlegen. Er darf nicht mit `INTERNAL_CRON_SECRET` identisch sein.
 - Supabase Auth und der E-Mail-Versand für Magic Links sind konfiguriert.
 

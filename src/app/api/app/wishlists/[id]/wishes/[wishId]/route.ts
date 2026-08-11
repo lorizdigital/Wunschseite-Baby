@@ -2,7 +2,8 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { wishlistIdSchema } from "@/lib/app-wishlist-data";
 import { getAuthenticatedRoute, privateJson } from "@/lib/app-route-auth";
-import { removeStoredProductImage } from "@/lib/product-image-storage";
+import { removeStoredProductImage, requiresProductImageDownload, storeProductImage } from "@/lib/product-image-storage";
+import { consumeRateLimit } from "@/lib/rate-limit";
 import { isJsonRequest, isSameAppOrigin } from "@/lib/request-security";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +41,14 @@ export async function PATCH(request: NextRequest, { params }: Context) {
   const parsed = wishInput.safeParse(body);
   if (!parsed.success) return auth.json({ error: "Die Wunschangaben sind ungültig." }, 400);
 
+  const { data: membership, error: membershipError } = await auth.supabase
+    .from("wishlist_members")
+    .select("role")
+    .eq("wishlist_id", id)
+    .eq("user_id", auth.user.id)
+    .maybeSingle();
+  if (membershipError || !membership || !["owner", "editor"].includes(membership.role as string)) return auth.json({ error: "Nicht gefunden." }, 404);
+
   const { data: existingWish, error: existingWishError } = await auth.supabase
     .from("wishes")
     .select("image_url,image_storage_path")
@@ -52,21 +61,36 @@ export async function PATCH(request: NextRequest, { params }: Context) {
   const previousStoragePath = (existingWish.image_storage_path as string | null) ?? null;
   const imageChanged = imageUrl !== previousImageUrl;
 
-  const { error } = await auth.supabase.rpc("update_wish_v1", {
-    p_wishlist_id: id,
-    p_wish_id: wishId,
-    p_title: parsed.data.title,
-    p_description: parsed.data.description || null,
-    p_product_url: parsed.data.productUrl || null,
-    p_image_url: imageUrl,
-    p_image_storage_path: imageChanged ? null : previousStoragePath,
-    p_price_amount: parsed.data.priceAmount,
-    p_currency: parsed.data.currency.toUpperCase(),
-    p_shop_name: parsed.data.shopName || null,
-  });
-  if (error) return auth.json({ error: "Der Wunsch konnte nicht aktualisiert werden." }, 422);
-  if (imageChanged && previousStoragePath) await removeStoredProductImage(previousStoragePath);
-  return auth.json({ ok: true });
+  if (imageChanged && requiresProductImageDownload(imageUrl)) {
+    const imageLimit = await consumeRateLimit("product-image-fetch", auth.user.id, 30, 60 * 60);
+    if (imageLimit === false) return auth.json({ error: "Bitte warte einen Moment, bevor du weitere Produktbilder übernimmst." }, 429);
+    if (imageLimit === null) return auth.json({ error: "Die Bildübernahme ist kurzzeitig nicht verfügbar." }, 503);
+  }
+
+  let stored: Awaited<ReturnType<typeof storeProductImage>> | null = null;
+  try {
+    if (imageChanged) stored = await storeProductImage(id, imageUrl);
+    const nextImageUrl = imageChanged ? stored?.url ?? null : imageUrl;
+    const nextStoragePath = imageChanged ? stored?.path ?? null : previousStoragePath;
+    const { error } = await auth.supabase.rpc("update_wish_v1", {
+      p_wishlist_id: id,
+      p_wish_id: wishId,
+      p_title: parsed.data.title,
+      p_description: parsed.data.description || null,
+      p_product_url: parsed.data.productUrl || null,
+      p_image_url: nextImageUrl,
+      p_image_storage_path: nextStoragePath,
+      p_price_amount: parsed.data.priceAmount,
+      p_currency: parsed.data.currency.toUpperCase(),
+      p_shop_name: parsed.data.shopName || null,
+    });
+    if (error) throw new Error("Der Wunsch konnte nicht aktualisiert werden.");
+    if (imageChanged && previousStoragePath) await removeStoredProductImage(previousStoragePath);
+    return auth.json({ ok: true, imageUrl: nextImageUrl });
+  } catch (reason) {
+    await removeStoredProductImage(stored?.path ?? null);
+    return auth.json({ error: reason instanceof Error ? reason.message : "Der Wunsch konnte nicht aktualisiert werden." }, 422);
+  }
 }
 
 export async function POST(request: NextRequest, { params }: Context) {
