@@ -38,7 +38,6 @@ const runtimeBindingsExcludedFromBuild = new Set([
   ...requiredRemoteBindings,
   "BREVO_INVITATION_TEMPLATE_ID",
   "BREVO_REPLY_TO_EMAIL",
-  "SELF_SERVICE_SIGNUP_ENABLED",
   "SUPABASE_SERVICE_ROLE_KEY",
 ]);
 
