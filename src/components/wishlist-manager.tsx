@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import type { AppWishlist, AppWishlistMember, AppWish } from "@/lib/app-wishlist-data";
 import { ACCESS_CODE_MAX_LENGTH, ACCESS_CODE_MIN_LENGTH, validateAccessCode } from "@/lib/access-code";
 import { SecretInput } from "@/components/secret-input";
@@ -129,6 +130,7 @@ export function WishlistManager({
   productImportEnabled: boolean;
   appOrigin: string;
 }) {
+  const router = useRouter();
   const [wishlist, setWishlist] = useState(initialWishlist);
   const [wishes, setWishes] = useState(initialWishes);
   const [members, setMembers] = useState(initialMembers);
@@ -333,7 +335,7 @@ export function WishlistManager({
     start("delete-immediately");
     try {
       await requestJson<{ deleted: true }>(`/api/app/wishlists/${wishlist.id}/deletion?mode=immediate`, "POST", { action: "delete_immediately", expectedTitle: deletionTitle });
-      window.location.assign("/app?deleted=1");
+      router.replace("/app?deleted=1");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Die Liste konnte nicht endgültig gelöscht werden.");
       finish();

@@ -1,5 +1,6 @@
-# Local Wrangler secrets. Copy to .dev.vars and replace every placeholder.
-# This file is only for `npm run cloudflare:preview` and is never deployed.
+# Local Wrangler preview bindings. Copy to .dev.vars and replace every placeholder.
+# This file is only for `npm run cloudflare:preview`, is never deployed and must
+# never be used as a source of production Worker secrets.
 
 NEXT_PUBLIC_SUPABASE_URL="https://<staging-project-ref>.supabase.co"
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="sb_publishable_<staging-key>"

@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { ACCESS_CODE_MAX_LENGTH, ACCESS_CODE_MIN_LENGTH, validateAccessCode } from "@/lib/access-code";
 import { SecretInput } from "@/components/secret-input";
 
 export function NewWishlistForm() {
+  const router = useRouter();
   const [title, setTitle] = useState("");
   const [intro, setIntro] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -21,7 +23,7 @@ export function NewWishlistForm() {
       });
       const data = await response.json().catch(() => ({})) as { list?: { wishlist_id: string }; error?: string };
       if (!response.ok || !data.list?.wishlist_id) throw new Error(data.error ?? "Die Liste konnte nicht angelegt werden.");
-      window.location.assign(`/app/lists/${data.list.wishlist_id}`);
+      router.push(`/app/lists/${data.list.wishlist_id}`);
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Die Liste konnte nicht angelegt werden."); }
     finally { setPending(false); }
   }

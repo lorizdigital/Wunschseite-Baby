@@ -124,7 +124,9 @@ Die offene Registrierung wird ausschließlich durch die serverseitige Login-Acti
 
 Für das geplante Cloudflare-Deployment ist die Anwendung als serverseitiger Worker mit OpenNext vorbereitet. Die Einrichtung von DNS, Cloudflare-Variablen, Supabase-Auth-URLs und die Staging-Reihenfolge steht in [docs/cloudflare-deployment.md](docs/cloudflare-deployment.md). Ein statisches Pages-Deployment ist für die serverseitigen Funktionen dieser Anwendung nicht ausreichend.
 
-Die eingecheckte Wrangler-Konfiguration zielt ausschließlich auf Produktion. Ein Produktions-Deploy ist deshalb nur über den explizit bestätigten Befehl `npm run cloudflare:deploy:production` zulässig; Staging verwendet die lokale Cloudflare-Preview oder später eine eigene Wrangler-Konfiguration mit getrenntem Workernamen und getrennten Routen. Dashboard-Runtime-Variablen bleiben beim Deploy durch `keep_vars` erhalten.
+**Bewusste Next-16-Ausnahme:** `src/middleware.ts` bleibt vorerst unter seinem veralteten Konventionsnamen bestehen. Next 16 führt `proxy.ts` ausschließlich im Node.js-Runtime aus, den die aktuell eingesetzte OpenNext-Cloudflare-Version noch nicht als Middleware unterstützt. Die Umbenennung erfolgt erst nach bestätigter Adapter-Unterstützung und einem erfolgreichen `npm run cloudflare:build`; bis dahin ist die Next-Buildwarnung erwartet.
+
+Die eingecheckte Wrangler-Konfiguration zielt ausschließlich auf Produktion. Ein Produktions-Deploy ist deshalb nur über den explizit bestätigten Wrapper-Aufruf aus [docs/cloudflare-deployment.md](docs/cloudflare-deployment.md) zulässig; Staging verwendet die lokale Cloudflare-Preview oder später eine eigene Wrangler-Konfiguration mit getrenntem Workernamen und getrennten Routen. Der Wrapper benötigt lokal nur die öffentlichen Supabase-Buildwerte, prüft die erforderlichen Remote-Secret-Namen read-only und erhält bestehende Dashboard-Bindings durch `keep_vars`.
 
 ## Testfamilie manuell anlegen
 

@@ -74,9 +74,11 @@ LEGACY_MATS_ADMIN_ENABLED=true
 
 `NEXT_PUBLIC_SUPABASE_URL` und `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` müssen bereits beim Cloudflare-Build vorhanden sein. Der Supabase-Secret-Key und alle übrigen Secrets dürfen nie mit `NEXT_PUBLIC_` beginnen. `PUBLIC_WISHLIST_ACCESS_SESSION_SECRET` benötigt mindestens 32 zufällige Zeichen. `MATS_ACCESS_CODE` und `MATS_ACCESS_CODE_VERSION` bleiben erforderlich, solange `/mats` erreichbar ist. `BREVO_API_KEY` wird als Cloudflare Secret hinterlegt. `BREVO_SENDER_EMAIL` muss für den primären Auth-Mailversand immer als Sender verifiziert sein; `BREVO_INVITATION_TEMPLATE_ID` ist nur erforderlich, wenn Einladungen eine aktive Brevo-Vorlage statt des eingebauten Layouts verwenden.
 
-Die Runtime-Variablen werden im Cloudflare-Dashboard verwaltet. `keep_vars` ist in `wrangler.jsonc` aktiviert und der Produktions-Deploy setzt zusätzlich `--keep-vars`, damit ein Deploy diese Dashboard-Variablen nicht durch die einzelne Repository-Variable `BREVO_SENDER_NAME` ersetzt. Secrets werden weiterhin ausschließlich als Cloudflare Secrets gepflegt.
+Die Runtime-Bindings werden derzeit im Cloudflare-Dashboard verwaltet. Einige nicht geheimen Werte wie `APP_ORIGIN`, die Feature-Flags und die beiden öffentlichen Supabase-Werte liegen dort historisch ebenfalls als `secret_text`. Diese Bindings werden in diesem Rollout nicht umklassifiziert oder gelöscht. `keep_vars` ist in `wrangler.jsonc` aktiviert und der Produktions-Deploy setzt zusätzlich `--keep-vars`, damit alle bestehenden Bindings unverändert erhalten bleiben.
 
-Unmittelbar vor dem Deploy müssen die Namen aus der obigen Liste im Dashboard abgeglichen werden. `npx wrangler secret list` darf ergänzend zur reinen Namenskontrolle der Secrets verwendet werden; der Deploy-Wrapper prüft lokale Buildwerte, kann aber nicht beweisen, dass eine gleichnamige Runtime-Variable bereits im Dashboard hinterlegt ist.
+`wrangler.jsonc` führt die für den aktuellen Produktions-Worker zwingenden Binding-Namen übergangsweise unter `secrets.required`. Diese Liste bildet den derzeitigen Remote-Typ ab und enthält deshalb noch einige Nichtsecrets. Maßgeblicher Preflight ist die explizite Namensprüfung: Der Deploy-Wrapper ruft vor dem Build `wrangler secret list --name wuenschi --format json` auf und vergleicht ausschließlich die Namen. Fehlende erforderliche Namen stoppen den Deploy; zusätzliche Namen werden nur gemeldet und bleiben erhalten. Secretwerte können dabei weder gelesen noch ausgegeben werden. Wranglers eigene `secrets.required`-Prüfung bleibt eine zusätzliche zweite Schranke.
+
+Die eigentlichen Geheimnisse `SUPABASE_SECRET_KEY`, `ADMIN_IMPORT_SECRET`, `PUBLIC_WISHLIST_ACCESS_SESSION_SECRET`, `MATS_ACCESS_CODE`, `INTERNAL_CRON_SECRET`, `INTERNAL_PROVISIONING_SECRET` und `BREVO_API_KEY` werden ausschließlich direkt bei Cloudflare gepflegt. Sie gehören nicht in eine lokale Produktions-Env-Datei und werden beim Anwendungsdeploy nicht rotiert. Das noch remote vorhandene `SELF_SERVICE_SIGNUP_ENABLED` ist veraltet, wird von der Anwendung nicht mehr gelesen und ist absichtlich weder erforderlich noch Teil des Deploy-Inputs. Es wird erst in einem separaten, ausdrücklich freigegebenen Bereinigungsschritt entfernt.
 
 Für Produktion müssen URL, Publishable Key, serverseitiger Secret Key und `ADMIN_IMPORT_SECRET` aus dem Produktionsprojekt stammen. `APP_ORIGIN` ist `https://wünschi.de`; für den öffentlichen Elternbereich gelten `MULTI_WISHLIST_ENABLED=true`, `PUBLICATION_ENABLED=true`, `PRODUCT_IMPORT_ENABLED=true` und `LEGACY_MATS_ADMIN_ENABLED=true`. Mit aktiviertem Mehrlistenbereich ist die passwortlose Registrierung geöffnet.
 
@@ -140,19 +142,29 @@ Die Produktionsmigrationen dürfen erst nach Backup, Mats-Baseline und bestanden
 ```bash
 npm run cloudflare:build
 npm run cloudflare:preview
-npm run cloudflare:deploy:production
 ```
 
-Der Produktions-Deploy lädt `.env.local` und startet nur, wenn alle folgenden Schutzbedingungen erfüllt sind:
+Der manuelle Produktions-Deploy benötigt nur die beiden öffentlichen Supabase-Buildwerte, die eindeutige Zielangabe und die Bestätigung. Produktionssecrets werden nicht lokal benötigt:
 
-```dotenv
-CLOUDFLARE_DEPLOY_TARGET=production
-CLOUDFLARE_PRODUCTION_DEPLOY_CONFIRMATION=deploy-wuenschi-production
-APP_ORIGIN=https://wünschi.de
-NEXT_PUBLIC_SUPABASE_URL=https://nnrkbdduiiebdahwcofa.supabase.co
+```bash
+CLOUDFLARE_DEPLOY_TARGET=production \
+  CLOUDFLARE_PRODUCTION_DEPLOY_CONFIRMATION=deploy-wuenschi-production \
+  NEXT_PUBLIC_SUPABASE_URL=https://nnrkbdduiiebdahwcofa.supabase.co \
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY='<production-publishable-key>' \
+  npm run cloudflare:deploy:production
 ```
 
-Zusätzlich prüft der Wrapper die erforderlichen Runtime-Variablennamen, die Produktions-Feature-Flags und den verifizierten Brevo-Absender beziehungsweise eine Template-ID. Werte und Secrets werden nicht ausgegeben. Der Befehl benötigt eine Cloudflare-Anmeldung beziehungsweise ein CI-Token und verändert keine Supabase-Datenbankmigrationen automatisch.
+Der Wrapper prüft Workername, Produktionsrouten, `keep_vars`, `secrets.required`, das exakte Supabase-Produktionsprojekt und anschließend read-only die vorhandenen Remote-Secret-Namen. Serverseitige Runtimewerte werden vor dem Start von Wrangler und OpenNext mit leeren Prozesswerten maskiert, damit Next.js sie nicht über seine eigene `.env.local`-Autoload-Logik wieder in den Produktionsbuild einliest. Die beiden `NEXT_PUBLIC_`-Werte bleiben für den Next-Build erhalten. Cloudflare-API-Credentials stehen nur der Namensprüfung und dem anschließenden Upload zur Verfügung und werden ebenfalls nicht an den Next-Build vererbt. Der Befehl benötigt eine Cloudflare-Anmeldung beziehungsweise ein nur für den Deploy bereitgestelltes CI-Token und verändert keine Supabase-Datenbankmigrationen automatisch.
+
+`APP_ORIGIN` und die Feature-Flags werden absichtlich nicht lokal an den Build übergeben. Sie werden ausschließlich serverseitig zur Request-Laufzeit gelesen; die betroffenen Seiten sind dynamisch und auch das erzeugte OpenNext-Middleware-Artefakt enthält weiterhin die `process.env`-Zugriffe. Damit prägt ein fehlender lokaler Wert weder Produktionsorigin noch Routensperren statisch falsch.
+
+Der npm-Alias startet den Wrapper ohne Env-Datei. `.env.local` bleibt für lokale Entwicklung und ausdrücklich bestätigte Read-only-Inventuren vorgesehen, nicht als Produktions-Secretquelle für den Worker-Deploy.
+
+Mit denselben vier Prozesswerten kann der vollständige Ziel- und Remote-Namenscheck ohne Build oder Deploy ausgeführt werden:
+
+```bash
+npm run cloudflare:deploy:production -- --preflight-only
+```
 
 ## 8. Read-only Produktionsinventur
 
