@@ -13,6 +13,18 @@ export type PublicResponse = {
 
 function isPrivateAddress(address: string) {
   const value = address.toLowerCase();
+  const mappedIpv4 = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i.exec(value);
+  if (mappedIpv4) {
+    const high = Number.parseInt(mappedIpv4[1], 16);
+    const low = Number.parseInt(mappedIpv4[2], 16);
+    return isPrivateAddress(`${high >>> 8}.${high & 255}.${low >>> 8}.${low & 255}`);
+  }
+  const compatibleIpv4 = /^::([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i.exec(value);
+  if (compatibleIpv4) {
+    const high = Number.parseInt(compatibleIpv4[1], 16);
+    const low = Number.parseInt(compatibleIpv4[2], 16);
+    return isPrivateAddress(`${high >>> 8}.${high & 255}.${low >>> 8}.${low & 255}`);
+  }
   if (value.startsWith("::ffff:")) return isPrivateAddress(value.slice(7));
   if (value.includes(":")) return value === "::" || value === "::1" || value.startsWith("fc") || value.startsWith("fd") || /^fe[89ab]/.test(value) || value.startsWith("2001:db8:");
   const [a, b] = value.split(".").map(Number);

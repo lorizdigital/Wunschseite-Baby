@@ -2,7 +2,8 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { wishlistIdSchema } from "@/lib/app-wishlist-data";
 import { getAuthenticatedRoute, privateJson } from "@/lib/app-route-auth";
-import { removeStoredProductImage, storeProductImage } from "@/lib/product-image-storage";
+import { removeStoredProductImage, requiresProductImageDownload, storeProductImage } from "@/lib/product-image-storage";
+import { consumeRateLimit } from "@/lib/rate-limit";
 import { isJsonRequest, isSameAppOrigin } from "@/lib/request-security";
 
 export const dynamic = "force-dynamic";
@@ -41,6 +42,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     .eq("user_id", auth.user.id)
     .maybeSingle();
   if (membershipError || !membership || !["owner", "editor"].includes(membership.role as string)) return auth.json({ error: "Nicht gefunden." }, 404);
+
+  if (requiresProductImageDownload(parsed.data.imageUrl || null)) {
+    const imageLimit = await consumeRateLimit("product-image-fetch", auth.user.id, 30, 60 * 60);
+    if (imageLimit === false) return auth.json({ error: "Bitte warte einen Moment, bevor du weitere Produktbilder übernimmst." }, 429);
+    if (imageLimit === null) return auth.json({ error: "Die Bildübernahme ist kurzzeitig nicht verfügbar." }, 503);
+  }
 
   let stored: Awaited<ReturnType<typeof storeProductImage>> | null = null;
   try {

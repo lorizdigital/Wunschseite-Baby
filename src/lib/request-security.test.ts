@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { isJsonRequest, isSameAppFormSubmission, isSameAppOrigin, isTrustedAppRequestTarget } from "@/lib/request-security";
+import { isJsonRequest, isSameAppFormSubmission, isSameAppOrigin } from "@/lib/request-security";
 
 const initialOrigin = process.env.APP_ORIGIN;
 
@@ -79,14 +79,19 @@ describe("cookie mutation request checks", () => {
     expect(isSameAppFormSubmission(request)).toBe(false);
   });
 
-  it("allows logout on known app hosts without fragile browser headers", () => {
+  it("rejects a known target when the form origin is unverifiable", () => {
     process.env.APP_ORIGIN = "https://listen.example";
-    expect(isTrustedAppRequestTarget(new Request("https://listen.example/auth/logout", { method: "POST" }))).toBe(true);
-    expect(isTrustedAppRequestTarget(new Request("https://www.listen.example/auth/logout", { method: "POST" }))).toBe(true);
+    expect(isSameAppFormSubmission(new Request("https://listen.example/auth/logout", {
+      method: "POST",
+      headers: { Origin: "null", "Sec-Fetch-Site": "same-origin" },
+    }))).toBe(false);
   });
 
   it("does not allow logout handling on an unrelated worker host", () => {
     process.env.APP_ORIGIN = "https://listen.example";
-    expect(isTrustedAppRequestTarget(new Request("https://worker.example.dev/auth/logout", { method: "POST" }))).toBe(false);
+    expect(isSameAppFormSubmission(new Request("https://worker.example.dev/auth/logout", {
+      method: "POST",
+      headers: { Origin: "https://worker.example.dev", "Sec-Fetch-Site": "same-origin" },
+    }))).toBe(false);
   });
 });

@@ -10,11 +10,6 @@ function getTrustedRequestOrigin(request: Request) {
   return target.origin;
 }
 
-/** Logout only clears host-bound SameSite cookies and is safe on known hosts. */
-export function isTrustedAppRequestTarget(request: Request) {
-  return getTrustedRequestOrigin(request) !== null;
-}
-
 /** Cookie-authenticated mutations must originate from this application. */
 export function isSameAppOrigin(request: Request) {
   const origin = request.headers.get("origin");

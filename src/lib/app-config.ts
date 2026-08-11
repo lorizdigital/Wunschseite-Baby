@@ -15,7 +15,7 @@ export function usesSecureCookies() {
   return new URL(getAppOrigin()).protocol === "https:";
 }
 
-export function isFeatureEnabled(name: "MULTI_WISHLIST_ENABLED" | "SELF_SERVICE_SIGNUP_ENABLED" | "PUBLICATION_ENABLED" | "PRODUCT_IMPORT_ENABLED" | "LEGACY_MATS_ADMIN_ENABLED") {
+export function isFeatureEnabled(name: "MULTI_WISHLIST_ENABLED" | "PUBLICATION_ENABLED" | "PRODUCT_IMPORT_ENABLED" | "LEGACY_MATS_ADMIN_ENABLED") {
   return process.env[name] === "true";
 }
 

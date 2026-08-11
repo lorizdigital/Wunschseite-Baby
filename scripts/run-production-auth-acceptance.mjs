@@ -203,7 +203,7 @@ async function main() {
 
     const logout = await withSession("/auth/logout", {
       method: "POST",
-      headers: { Origin: "null", "Sec-Fetch-Site": "same-origin" },
+      headers: { Origin: appOrigin, "Sec-Fetch-Site": "same-origin" },
     });
     cookies.absorb(logout.headers);
     assert(logout.status === 303 && logout.headers.get("location")?.endsWith("/login?logged_out=1"), `Logout lieferte ${logout.status}.`);
@@ -217,7 +217,7 @@ async function main() {
     const wwwLogout = await fetch(`${wwwOrigin}/auth/logout`, {
       method: "POST",
       redirect: "manual",
-      headers: { Origin: "null", "Sec-Fetch-Site": "same-origin" },
+      headers: { Origin: wwwOrigin, "Sec-Fetch-Site": "same-origin" },
     });
     assert(wwwLogout.status === 303 && wwwLogout.headers.get("location")?.endsWith("/login?logged_out=1"), "Ein vorhandener www-Logout wird nicht sicher verarbeitet.");
 

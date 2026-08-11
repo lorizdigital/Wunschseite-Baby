@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getAppOrigin } from "@/lib/app-config";
-import { isTrustedAppRequestTarget } from "@/lib/request-security";
+import { isSameAppFormSubmission } from "@/lib/request-security";
 import { createSupabaseRouteClient } from "@/lib/supabase-route-client";
 
 export async function POST(request: NextRequest) {
-  if (!isTrustedAppRequestTarget(request)) return Response.json({ error: "Ungültige Anfrage." }, { status: 403, headers: { "Cache-Control": "no-store" } });
+  if (!isSameAppFormSubmission(request)) return Response.json({ error: "Ungültige Anfrage." }, { status: 403, headers: { "Cache-Control": "no-store" } });
 
   const client = createSupabaseRouteClient(request);
   if (client) await client.supabase.auth.signOut({ scope: "local" });

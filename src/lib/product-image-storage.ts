@@ -38,9 +38,7 @@ export async function storeProductImage(wishlistId: string, imageUrl: string | n
   if (!imageUrl || imageUrl.startsWith("/")) return { url: imageUrl, path: null };
   const supabase = getSupabaseAdmin();
   if (!supabase) throw new Error("Supabase ist noch nicht eingerichtet.");
-  const projectHost = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://invalid.local").host;
-  const parsed = new URL(imageUrl);
-  if (parsed.host === projectHost && parsed.pathname.includes("/storage/v1/object/public/product-images/")) return { url: imageUrl, path: null };
+  if (!requiresProductImageDownload(imageUrl)) return { url: imageUrl, path: null };
 
   const image = await downloadImage(imageUrl);
   const path = `${wishlistId}/${randomUUID()}.${image.extension}`;
@@ -52,6 +50,17 @@ export async function storeProductImage(wishlistId: string, imageUrl: string | n
   if (error) throw new Error(`Das Produktbild konnte nicht gespeichert werden: ${error.message}`);
   const { data } = supabase.storage.from("product-images").getPublicUrl(path);
   return { url: data.publicUrl, path };
+}
+
+export function requiresProductImageDownload(imageUrl: string | null) {
+  if (!imageUrl || imageUrl.startsWith("/")) return false;
+  try {
+    const projectHost = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://invalid.local").host;
+    const parsed = new URL(imageUrl);
+    return parsed.host !== projectHost || !parsed.pathname.includes("/storage/v1/object/public/product-images/");
+  } catch {
+    return true;
+  }
 }
 
 export async function removeStoredProductImage(path: string | null) {
