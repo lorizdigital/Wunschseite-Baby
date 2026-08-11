@@ -317,31 +317,60 @@ async function run() {
       signInAs(url, publishableKey, emailB, password, "B"),
     ]);
 
+    const rejectedUnprotectedList = await clientA.rpc("create_wishlist_v2", {
+      p_title: `Ungeschuetzte Abnahme ${runId}`,
+      p_intro: "Dieser Aufruf muss atomar abgelehnt werden.",
+      p_display_name: "Abnahme Elternteil A",
+      p_access_code: "zu-kurz",
+    });
+    assert(Boolean(rejectedUnprotectedList.error), "create_wishlist_v2 akzeptiert einen zu kurzen Zugangscode.");
+    const contextAfterRejectedCreation = requireSuccess(
+      await clientA.rpc("get_my_wishlist_context_v1"),
+      "Listen-Kontext nach abgelehntem Pflichtcode",
+    );
+    assert(
+      Array.isArray(contextAfterRejectedCreation) && contextAfterRejectedCreation.length === 0,
+      "Der abgelehnte Pflichtcode hat dennoch eine Liste oder Mitgliedschaft angelegt.",
+    );
+
     const listA = requireSingleRow(
       requireSuccess(
-        await clientA.rpc("create_wishlist_v1", {
+        await clientA.rpc("create_wishlist_v2", {
           p_title: `Abnahme A ${runId}`,
           p_intro: "Automatischer Staging-Abnahmetest.",
           p_display_name: "Abnahme Elternteil A",
+          p_access_code: `Abnahme-A-${runId}`,
         }),
-        "Liste A über create_wishlist_v1 anlegen",
+        "Geschützte Liste A über create_wishlist_v2 anlegen",
       ),
-      "Liste A über create_wishlist_v1 anlegen",
+      "Geschützte Liste A über create_wishlist_v2 anlegen",
     );
 
     const listB = requireSingleRow(
       requireSuccess(
-        await clientB.rpc("create_wishlist_v1", {
+        await clientB.rpc("create_wishlist_v2", {
           p_title: `Abnahme B ${runId}`,
           p_intro: "Automatischer Staging-Abnahmetest.",
           p_display_name: "Abnahme Elternteil B",
+          p_access_code: `Abnahme-B-${runId}`,
         }),
-        "Liste B über create_wishlist_v1 anlegen",
+        "Geschützte Liste B über create_wishlist_v2 anlegen",
       ),
-      "Liste B über create_wishlist_v1 anlegen",
+      "Geschützte Liste B über create_wishlist_v2 anlegen",
     );
     assert(typeof listA.public_slug === "string" && listA.public_slug.length >= 22, "Liste A hat keinen sicheren öffentlichen Slug.");
     assert(typeof listB.public_slug === "string" && listB.public_slug.length >= 22, "Liste B hat keinen sicheren öffentlichen Slug.");
+    const protectionA = requireSingleRow(
+      requireSuccess(
+        await clientA.from("wishlists").select("visibility,access_code_version").eq("id", listA.wishlist_id),
+        "Pflichtschutz von Liste A lesen",
+      ),
+      "Pflichtschutz von Liste A lesen",
+    );
+    assert(
+      protectionA.visibility === "access_code" && typeof protectionA.access_code_version === "string",
+      "create_wishlist_v2 hat Liste A nicht vollständig mit einem Zugangscode geschützt.",
+    );
 
     const draftPublicContext = requireSuccess(
       await admin.rpc("get_public_wishlist_context_v1", { p_public_slug: listA.public_slug }),

@@ -56,14 +56,13 @@ npm run build
 | `MATS_ACCESS_CODE_VERSION` | widerruft beim Wechsel des Mats-Codes bisherige Browser-Freigaben | Ja, solange `/mats` erreichbar ist |
 | `APP_ORIGIN` | exakte öffentliche Origin, im Produktivbetrieb `https://wünschi.de` | Ja vor Veröffentlichung |
 | `INTERNAL_CRON_SECRET` | separates Geheimnis für die internen Löschläufe | Ja vor Produktivbetrieb |
-| `INTERNAL_PROVISIONING_SECRET` | separates Geheimnis für die manuelle Aufnahme in die geschlossene Beta | Ja für geschlossene Beta |
-| `BREVO_API_KEY` | serverseitiger Brevo-Key für transaktionale Einladungs-E-Mails | Ja vor aktivem E-Mail-Versand |
-| `BREVO_SENDER_EMAIL` | verifizierter Brevo-Absender; bei Template-Versand optional | Ja ohne Template |
+| `INTERNAL_PROVISIONING_SECRET` | separates Geheimnis für die optionale manuelle Anlage einer Testfamilie | Nur für diesen Operator-Ablauf |
+| `BREVO_API_KEY` | serverseitiger Brevo-Key für transaktionale Auth- und Einladungs-E-Mails | Ja vor aktivem Brevo-Versand |
+| `BREVO_SENDER_EMAIL` | verifizierter Brevo-Absender für Auth-Mails und Einladungen ohne Vorlage | Ja für den primären Auth-Versand |
 | `BREVO_SENDER_NAME` | sichtbarer Absendername für Inline-E-Mails | Nein |
 | `BREVO_REPLY_TO_EMAIL` | optionale Antwortadresse | Nein |
 | `BREVO_INVITATION_TEMPLATE_ID` | optionale aktive Brevo-Vorlage; ersetzt das Inline-Layout | Nein |
 | `MULTI_WISHLIST_ENABLED` | schaltet `/app`, Einladungen und Mehrlisten-APIs frei | Nein, standardmäßig `false` |
-| `SELF_SERVICE_SIGNUP_ENABLED` | schaltet `/neu` frei | Nein, standardmäßig `false` |
 | `PUBLICATION_ENABLED` | erlaubt das Veröffentlichen von Listen | Nein, standardmäßig `false` |
 | `PRODUCT_IMPORT_ENABLED` | erlaubt das serverseitige Auslesen von Produktseiten | Nein, standardmäßig `false` |
 | `LEGACY_MATS_ADMIN_ENABLED` | hält den Legacy-Admin als Rückfallweg aktiv | Nein, standardmäßig `true` |
@@ -78,7 +77,7 @@ npm run build
 4. **Migrationen zuerst in Staging prüfen.** `npx supabase db push --dry-run`, dann `npx supabase db push`; anschließend jeden Fall aus [docs/staging-acceptance.md](docs/staging-acceptance.md) mit zwei Testkonten durchführen.
 5. **Staging abnehmen.** RLS, Rollen, Einladungen, parallele Reservierungen, Datenlöschung und Mats-Regression müssen bestanden sein.
 6. **Produktion migrieren.** Dies wurde am 9. August 2026 nach frischem, lokal geschütztem Datenexport und Baseline-Abgleich durchgeführt. Die Migrationen sind additiv; Mats wurde keinem Elternkonto zugeordnet.
-7. **Geschlossen starten.** `MULTI_WISHLIST_ENABLED=true`, aber Selbstregistrierung, Veröffentlichung und Produktimport zunächst bewusst über die jeweiligen Flags steuern. Neue Testfamilien werden dann ausschließlich über den dokumentierten Provisionierungsweg aufgenommen.
+7. **Registrierung kontrolliert öffnen.** `MULTI_WISHLIST_ENABLED=true` schaltet Elternbereich und offene passwortlose Registrierung gemeinsam frei; Veröffentlichung und Produktimport bleiben über ihre eigenen Flags steuerbar. Der separate Provisionierungsweg dient nur noch gezielten Testkonten.
 8. **Mats getrennt halten.** Die vollständige Bestandsliste bleibt unter `/mats`; `/admin` bleibt ihr separater Legacy-Verwaltungsweg. Eine spätere Übernahme in ein Elternkonto erfordert eine ausdrückliche Entscheidung.
 
 Ein Anwendungsrollback erfolgt über Flags und ein vorheriges Deployment. Nach der Anlage neuer Familienlisten dürfen Tabellen oder Spalten nicht per Down-Migration gelöscht werden; Fehler werden per Forward-Fix behoben.
@@ -121,10 +120,14 @@ Impressum und Datenschutzhinweise liegen unter `/impressum` und `/datenschutz` b
 
 Für Entwicklung und Staging genügt eine Plattform-URL. Setze `APP_ORIGIN` dort exakt auf diese URL; Magic Links und Same-Origin-Prüfungen funktionieren nur mit der tatsächlichen Origin. Eine eigene Domain wird erst für den späteren öffentlichen Auftritt benötigt.
 
+Die offene Registrierung wird ausschließlich durch die serverseitige Login-Action vermittelt: Sie erzeugt den Auth-Link mit dem Supabase-Service-Key und versendet ihn vorrangig über Brevo, bei einem Zustellfehler kontrolliert über Supabase. Die öffentliche Supabase-Selbstregistrierung bleibt deshalb in `supabase/config.toml` deaktiviert; der Fallback darf nur bereits service-seitig angelegte Konten anschreiben.
+
 Für das geplante Cloudflare-Deployment ist die Anwendung als serverseitiger Worker mit OpenNext vorbereitet. Die Einrichtung von DNS, Cloudflare-Variablen, Supabase-Auth-URLs und die Staging-Reihenfolge steht in [docs/cloudflare-deployment.md](docs/cloudflare-deployment.md). Ein statisches Pages-Deployment ist für die serverseitigen Funktionen dieser Anwendung nicht ausreichend.
 
-## Geschlossene Beta aufnehmen
+Die eingecheckte Wrangler-Konfiguration zielt ausschließlich auf Produktion. Ein Produktions-Deploy ist deshalb nur über den explizit bestätigten Befehl `npm run cloudflare:deploy:production` zulässig; Staging verwendet die lokale Cloudflare-Preview oder später eine eigene Wrangler-Konfiguration mit getrenntem Workernamen und getrennten Routen. Dashboard-Runtime-Variablen bleiben beim Deploy durch `keep_vars` erhalten.
 
-Wenn `SELF_SERVICE_SIGNUP_ENABLED=false` ist, legt `POST /api/internal/provision-wishlist` ein neues, bestätigtes Elternkonto, eine erste Entwurfsliste und eine Owner-Mitgliedschaft in einem kontrollierten Ablauf an. Der Endpunkt akzeptiert ausschließlich JSON und `Authorization: Bearer $INTERNAL_PROVISIONING_SECRET`; Scheduler und Monitoring können dieses separate Geheimnis nicht verwenden.
+## Testfamilie manuell anlegen
+
+Optional legt `POST /api/internal/provision-wishlist` ein neues, bestätigtes Elternkonto, eine erste Entwurfsliste und eine Owner-Mitgliedschaft in einem kontrollierten Operator-Ablauf an. Die öffentliche Registrierung benötigt diesen Weg nicht. Der Endpunkt akzeptiert ausschließlich JSON und `Authorization: Bearer $INTERNAL_PROVISIONING_SECRET`; Scheduler und Monitoring können dieses separate Geheimnis nicht verwenden.
 
 Der genaue Staging- und Produktionsablauf steht in [docs/closed-beta-provisioning.md](docs/closed-beta-provisioning.md). Mats wird über diesen Weg nie verändert oder übernommen.

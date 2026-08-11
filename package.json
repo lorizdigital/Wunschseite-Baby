@@ -7,13 +7,14 @@
     "build": "next build --webpack",
     "cloudflare:build": "opennextjs-cloudflare build",
     "cloudflare:preview": "opennextjs-cloudflare build && wrangler dev",
-    "cloudflare:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "cloudflare:deploy:production": "node --env-file=.env.local scripts/run-cloudflare-production-deploy.mjs",
     "cloudflare:types": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
     "test:staging": "node --env-file=.env.staging.local scripts/run-staging-acceptance.mjs",
-    "test:production:auth": "node --env-file=.env.local scripts/run-production-auth-acceptance.mjs"
+    "test:production:auth": "node --env-file=.env.local scripts/run-production-auth-acceptance.mjs",
+    "inspect:production:wishlists": "node --env-file=.env.local scripts/run-production-wishlist-inventory.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

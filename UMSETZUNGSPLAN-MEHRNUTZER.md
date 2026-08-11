@@ -501,15 +501,14 @@ Mats darf zu keinem Zeitpunkt von einer sofortigen oder fehlgeschlagenen Account
 Reihenfolge:
 
 1. interne zweite Testliste
-2. geschlossene Beta mit drei bis fünf Familien
-3. eingeladene Beta mit Monitoring und Supportweg
+2. interne Testphase mit drei bis fünf Familien
+3. öffentliche Registrierung mit Monitoring und Supportweg
 4. Auswertung von Fehlern und Nutzung
-5. schrittweise Öffnung der Registrierung
+5. schrittweise Aktivierung der Veröffentlichungs- und Importfunktionen
 
 Feature-Flags:
 
 - `MULTI_WISHLIST_ENABLED`
-- `SELF_SERVICE_SIGNUP_ENABLED`
 - `PUBLICATION_ENABLED`
 - `PRODUCT_IMPORT_ENABLED`
 - `LEGACY_MATS_ADMIN_ENABLED`
