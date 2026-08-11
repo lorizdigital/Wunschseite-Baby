@@ -51,7 +51,10 @@ export async function middleware(request: NextRequest) {
   const canonicalRedirect = getCanonicalHostRedirect(request);
   if (canonicalRedirect) return canonicalRedirect;
 
-  if (isHttpRequest(request)) {
+  // Production and every HTTPS-configured environment still redirect before
+  // any session work. Explicit local HTTP origins remain usable for design
+  // previews (`next dev` and `wrangler dev`).
+  if (isHttpRequest(request) && new URL(getAppOrigin()).protocol === "https:") {
     const secureUrl = request.nextUrl.clone();
     secureUrl.protocol = "https:";
     return NextResponse.redirect(secureUrl, 308);
