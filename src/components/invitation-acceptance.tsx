@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 
 export function InvitationAcceptance({ token }: { token: string }) {
+  const router = useRouter();
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -15,7 +17,7 @@ export function InvitationAcceptance({ token }: { token: string }) {
       });
       const data = await response.json().catch(() => ({})) as { wishlist?: { wishlist_id: string }; error?: string };
       if (!response.ok || !data.wishlist?.wishlist_id) throw new Error(data.error ?? "Die Einladung konnte nicht angenommen werden.");
-      window.location.assign(`/app/lists/${data.wishlist.wishlist_id}`);
+      router.push(`/app/lists/${data.wishlist.wishlist_id}`);
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Die Einladung konnte nicht angenommen werden."); }
     finally { setPending(false); }
   }

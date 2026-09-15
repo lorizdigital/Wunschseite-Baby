@@ -10,6 +10,8 @@ export type AdminWish = {
   sortOrder: number;
   archived: boolean;
   reserved: boolean;
+  reservedBy: string | null;
+  reservedAt: string | null;
 };
 
 export type WishDraft = {

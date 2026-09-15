@@ -95,6 +95,20 @@ export async function cancelMatsReservation(wishId: string, password: string) {
   return { cancelled: Boolean(data), mode: "live" as const };
 }
 
+/** Notausgang der Mats-Verwaltung für Gäste, die ihr Reservierungspasswort vergessen haben. */
+export async function releaseMatsReservationAsAdmin(wishId: string) {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) {
+    if (!demoModeIsAllowed()) return { unavailable: true as const };
+    if (!fallbackMatsWishIds.has(wishId)) return { unavailable: true as const };
+    return { released: demoStore.delete(wishId), mode: "demo" as const };
+  }
+  const { data, error } = await supabase.rpc("admin_release_mats_reservation_v1", { p_wish_id: wishId });
+  if (error?.code === "P0002") return { unavailable: true as const };
+  if (error) throw new Error(error.message);
+  return { released: Boolean(data), mode: "live" as const };
+}
+
 export async function createPublicReservation(wishlistId: string, wishId: string, guestName: string, password: string, idempotencyKey: string) {
   const supabase = getSupabaseAdmin();
   if (!supabase) throw new Error("Supabase ist nicht eingerichtet.");

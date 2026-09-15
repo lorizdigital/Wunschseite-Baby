@@ -21,6 +21,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   try { await request.json(); } catch { return auth.json({ error: "Ungültige Anfrage." }, 400); }
 
   const { data, error } = await auth.supabase.rpc("publish_wishlist_v1", { p_wishlist_id: id });
-  if (error || !data) return auth.json({ error: "Die Liste konnte nicht veröffentlicht werden." }, 422);
+  if (error || !data) {
+    console.error("publish_wishlist_v1 failed", { code: error?.code ?? "missing_result" });
+    if (error?.message.includes("access_code_required")) return auth.json({ error: "Lege zuerst den verpflichtenden Zugangscode fest." }, 422);
+    if (error?.message.includes("wishlist_empty")) return auth.json({ error: "Füge vor der Veröffentlichung mindestens einen Wunsch hinzu." }, 422);
+    return auth.json({ error: "Die Liste konnte nicht veröffentlicht werden." }, 422);
+  }
   return auth.json({ publishedAt: data });
 }

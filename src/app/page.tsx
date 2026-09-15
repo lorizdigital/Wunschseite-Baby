@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { PRODUCT_NAME } from "@/lib/brand";
-import { isFeatureEnabled } from "@/lib/app-config";
 
 // The root page is deliberately request-rendered so a deployment replaces the
 // previous landing page immediately instead of retaining an old static page
@@ -8,7 +7,6 @@ import { isFeatureEnabled } from "@/lib/app-config";
 export const dynamic = "force-dynamic";
 
 export default function Home() {
-  const selfServiceEnabled = isFeatureEnabled("SELF_SERVICE_SIGNUP_ENABLED");
   return (
     <main className="landing-page">
       <header className="landing-header">
@@ -16,7 +14,7 @@ export default function Home() {
           <span className="landing-brand-mark" aria-hidden="true">♡</span>
           <span>{PRODUCT_NAME}</span>
         </Link>
-        <Link className="landing-login-link" href="/login">{selfServiceEnabled ? "Loslegen" : "Anmelden"}</Link>
+        <Link className="landing-login-link" href="/login">Loslegen</Link>
       </header>
 
       <section className="landing-hero">
@@ -25,8 +23,8 @@ export default function Home() {
           <h1>Wünsche teilen.<br />Freude schenken.</h1>
           <p>Mit Wünschi erstellt ihr eine persönliche Wunschliste, teilt sie nur mit euren Liebsten und vermeidet doppelte Geschenke.</p>
           <div className="landing-actions">
-            <Link className="landing-primary-action" href="/login">{selfServiceEnabled ? "Wunschliste erstellen" : "Zum Elternbereich"}</Link>
-            <p>{selfServiceEnabled ? "Kostenlos mit deiner E-Mail-Adresse starten." : "Du bist bereits eingeladen? Melde dich mit deiner E-Mail-Adresse an."}</p>
+            <Link className="landing-primary-action" href="/login">Wunschliste erstellen</Link>
+            <p>Kostenlos mit deiner E-Mail-Adresse starten.</p>
           </div>
         </div>
         <div className="landing-art" aria-hidden="true">

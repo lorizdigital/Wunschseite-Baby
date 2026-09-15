@@ -7,17 +7,19 @@
     "build": "next build --webpack",
     "cloudflare:build": "opennextjs-cloudflare build",
     "cloudflare:preview": "opennextjs-cloudflare build && wrangler dev",
-    "cloudflare:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "cloudflare:deploy:production": "node scripts/run-cloudflare-production-deploy.mjs",
     "cloudflare:types": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:staging": "node --env-file=.env.staging.local scripts/run-staging-acceptance.mjs"
+    "test:staging": "node --env-file=.env.staging.local scripts/run-staging-acceptance.mjs",
+    "test:production:auth": "node --env-file=.env.local scripts/run-production-auth-acceptance.mjs",
+    "inspect:production:wishlists": "node --env-file=.env.local scripts/run-production-wishlist-inventory.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.110.7",
-    "next": "^16.2.11",
+    "next": "16.3.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "zod": "^4.4.3"
@@ -30,14 +32,11 @@
     "@types/react-dom": "^19",
     "esbuild": "^0.28.2",
     "eslint": "^9",
-    "eslint-config-next": "^16.2.11",
+    "eslint-config-next": "16.3.0",
     "supabase": "^2.109.1",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.10",
     "wrangler": "^4.120.0"
-  },
-  "overrides": {
-    "postcss": "8.5.20"
   }
 }

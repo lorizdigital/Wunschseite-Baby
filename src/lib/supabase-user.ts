@@ -35,7 +35,7 @@ export async function createSupabaseUserClient() {
             cookieStore.set(name, value, sessionCookieOptions(options));
           });
         } catch {
-          // Server Components cannot set cookies. src/proxy.ts refreshes those
+          // Server Components cannot set cookies. src/middleware.ts refreshes those
           // sessions before a protected page renders.
         }
       },
@@ -61,5 +61,17 @@ export function getSafeAuthNext(value: string | null | undefined) {
 
 export function getAuthCallbackUrl(nextPath?: string | null) {
   const next = getSafeAuthNext(nextPath);
+  // The default login target is the app dashboard. Keep that redirect URL
+  // query-free so it exactly matches Supabase's configured callback URL.
+  // Supabase otherwise falls back to the site URL before our callback can
+  // exchange the authorization code for a session.
+  if (next === "/app") return `${getAppOrigin()}/auth/callback`;
   return `${getAppOrigin()}/auth/callback?next=${encodeURIComponent(next)}`;
+}
+
+export function getMagicLinkConfirmUrl(tokenHash: string, nextPath?: string | null) {
+  const url = new URL(getAuthCallbackUrl(nextPath));
+  url.searchParams.set("token_hash", tokenHash);
+  url.searchParams.set("type", "magiclink");
+  return url.toString();
 }

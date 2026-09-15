@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { wishlistIdSchema } from "@/lib/app-wishlist-data";
 import { getAuthenticatedRoute, privateJson } from "@/lib/app-route-auth";
+import { removeStoredProductImage, requiresProductImageDownload, storeProductImage } from "@/lib/product-image-storage";
+import { consumeRateLimit } from "@/lib/rate-limit";
 import { isJsonRequest, isSameAppOrigin } from "@/lib/request-security";
 
 export const dynamic = "force-dynamic";
@@ -33,17 +35,38 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const parsed = wishInput.safeParse(body);
   if (!parsed.success) return auth.json({ error: "Die Wunschangaben sind ungültig." }, 400);
 
-  const { data, error } = await auth.supabase.rpc("create_wish_v1", {
-    p_wishlist_id: id,
-    p_title: parsed.data.title,
-    p_description: parsed.data.description || null,
-    p_product_url: parsed.data.productUrl || null,
-    p_image_url: parsed.data.imageUrl || null,
-    p_image_storage_path: null,
-    p_price_amount: parsed.data.priceAmount,
-    p_currency: parsed.data.currency.toUpperCase(),
-    p_shop_name: parsed.data.shopName || null,
-  });
-  if (error || !data?.[0]) return auth.json({ error: "Der Wunsch konnte nicht angelegt werden." }, 422);
-  return auth.json({ wish: data[0] }, 201);
+  const { data: membership, error: membershipError } = await auth.supabase
+    .from("wishlist_members")
+    .select("role")
+    .eq("wishlist_id", id)
+    .eq("user_id", auth.user.id)
+    .maybeSingle();
+  if (membershipError || !membership || !["owner", "editor"].includes(membership.role as string)) return auth.json({ error: "Nicht gefunden." }, 404);
+
+  if (requiresProductImageDownload(parsed.data.imageUrl || null)) {
+    const imageLimit = await consumeRateLimit("product-image-fetch", auth.user.id, 30, 60 * 60);
+    if (imageLimit === false) return auth.json({ error: "Bitte warte einen Moment, bevor du weitere Produktbilder übernimmst." }, 429);
+    if (imageLimit === null) return auth.json({ error: "Die Bildübernahme ist kurzzeitig nicht verfügbar." }, 503);
+  }
+
+  let stored: Awaited<ReturnType<typeof storeProductImage>> | null = null;
+  try {
+    stored = await storeProductImage(id, parsed.data.imageUrl || null);
+    const { data, error } = await auth.supabase.rpc("create_wish_v1", {
+      p_wishlist_id: id,
+      p_title: parsed.data.title,
+      p_description: parsed.data.description || null,
+      p_product_url: parsed.data.productUrl || null,
+      p_image_url: stored.url,
+      p_image_storage_path: stored.path,
+      p_price_amount: parsed.data.priceAmount,
+      p_currency: parsed.data.currency.toUpperCase(),
+      p_shop_name: parsed.data.shopName || null,
+    });
+    if (error || !data?.[0]) throw new Error("Der Wunsch konnte nicht angelegt werden.");
+    return auth.json({ wish: { ...data[0], image_url: stored.url } }, 201);
+  } catch (reason) {
+    await removeStoredProductImage(stored?.path ?? null);
+    return auth.json({ error: reason instanceof Error ? reason.message : "Der Wunsch konnte nicht angelegt werden." }, 422);
+  }
 }
