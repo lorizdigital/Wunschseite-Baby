@@ -7,7 +7,7 @@
     "build": "next build --webpack",
     "cloudflare:build": "opennextjs-cloudflare build",
     "cloudflare:preview": "opennextjs-cloudflare build && wrangler dev",
-    "cloudflare:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "cloudflare:deploy:production": "node scripts/run-cloudflare-production-deploy.mjs",
     "cloudflare:types": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "start": "next start",
     "lint": "eslint",
