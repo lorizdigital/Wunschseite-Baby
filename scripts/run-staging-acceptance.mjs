@@ -92,6 +92,112 @@ end
 $cleanup$;
 `;
 
+// Die Legacy-Funktion für Mats ist fest an eine Wunschlisten-ID gebunden und
+// lässt sich deshalb nur innerhalb dieser Liste prüfen. Die Vorrichtung legt
+// dort einen einzelnen Abnahme-Wunsch an und rührt die Liste selbst nicht an.
+// Zwei Sicherungen halten sie von echten Daten fern: Der Aufbau bricht ab,
+// sobald unter der Wunsch-ID etwas ohne den Marker liegt, und jedes Löschen
+// verlangt den Marker zusätzlich zur ID.
+const matsWishlistId = "3d1f46e6-8e0e-4418-a0da-581be7cf795f";
+const matsFixtureWishId = "9f3a7c52-1d64-4a88-b0e5-6c2f18ab4d07";
+const matsFixtureMarker = "staging-acceptance-mats-fixture";
+
+const matsFixtureSetupSql = `do $fixture$
+declare
+  v_list constant uuid := '${matsWishlistId}'::uuid;
+  v_wish constant uuid := '${matsFixtureWishId}'::uuid;
+  v_marker constant text := '${matsFixtureMarker}';
+  v_reservation uuid;
+begin
+  if not exists (select 1 from public.wishlists as list where list.id = v_list) then
+    raise exception 'mats_wishlist_missing';
+  end if;
+
+  if exists (
+    select 1 from public.wishes as wish
+    where wish.id = v_wish and wish.description is distinct from v_marker
+  ) then
+    raise exception 'mats_fixture_wish_id_taken';
+  end if;
+
+  delete from public.reservation_idempotency as request where request.wish_id = v_wish;
+  delete from public.reservations as reservation where reservation.wish_id = v_wish;
+  delete from public.wishes as wish where wish.id = v_wish and wish.description = v_marker;
+
+  insert into public.wishes (id, wishlist_id, title, description, product_url, sort_order)
+  values (v_wish, v_list, 'Abnahme-Wunsch', v_marker, 'https://example.invalid/artikel', 10000);
+
+  insert into public.reservations (wish_id, guest_name, password_hash)
+  values (v_wish, 'Abnahme Gast', extensions.crypt('abnahme-passwort', extensions.gen_salt('bf', 10)))
+  returning id into v_reservation;
+
+  insert into public.reservation_idempotency (idempotency_key, wishlist_id, wish_id, reservation_id, completed_at)
+  values ('staging-acceptance-mats-fixture-key', v_list, v_wish, v_reservation, pg_catalog.now());
+end
+$fixture$;
+`;
+
+const matsFixtureVerifySql = `do $verify$
+declare
+  v_wish constant uuid := '${matsFixtureWishId}'::uuid;
+  v_marker constant text := '${matsFixtureMarker}';
+  v_open integer;
+  v_cancelled integer;
+  v_idempotency integer;
+begin
+  if not exists (
+    select 1 from public.wishes as wish
+    where wish.id = v_wish and wish.description = v_marker
+  ) then
+    raise exception 'mats_fixture_missing';
+  end if;
+
+  select count(*) into v_open
+  from public.reservations as reservation
+  where reservation.wish_id = v_wish and reservation.cancelled_at is null;
+  if v_open <> 0 then
+    raise exception 'mats_reservation_still_open';
+  end if;
+
+  select count(*) into v_cancelled
+  from public.reservations as reservation
+  where reservation.wish_id = v_wish and reservation.cancelled_at is not null;
+  if v_cancelled <> 1 then
+    raise exception 'mats_reservation_not_cancelled';
+  end if;
+
+  select count(*) into v_idempotency
+  from public.reservation_idempotency as request
+  where request.wish_id = v_wish;
+  if v_idempotency <> 0 then
+    raise exception 'mats_idempotency_not_cleared';
+  end if;
+
+  delete from public.reservations as reservation where reservation.wish_id = v_wish;
+  delete from public.wishes as wish where wish.id = v_wish and wish.description = v_marker;
+end
+$verify$;
+`;
+
+const matsFixtureCleanupSql = `do $mats_fixture_cleanup$
+declare
+  v_wish constant uuid := '${matsFixtureWishId}'::uuid;
+  v_marker constant text := '${matsFixtureMarker}';
+begin
+  if not exists (
+    select 1 from public.wishes as wish
+    where wish.id = v_wish and wish.description = v_marker
+  ) then
+    return;
+  end if;
+
+  delete from public.reservation_idempotency as request where request.wish_id = v_wish;
+  delete from public.reservations as reservation where reservation.wish_id = v_wish;
+  delete from public.wishes as wish where wish.id = v_wish and wish.description = v_marker;
+end
+$mats_fixture_cleanup$;
+`;
+
 function fail(message) {
   throw new Error(message);
 }
@@ -223,7 +329,7 @@ function redactedCliDetail(value, database) {
   return detail.replaceAll(/[\r\n]+/g, " ").trim().slice(0, 500);
 }
 
-async function runSupabaseDbQuery(database, sqlPath) {
+async function runSupabaseDbQuery(database, sqlPath, label) {
   return new Promise((resolve, reject) => {
     const command = process.platform === "win32" ? "npx.cmd" : "npx";
     const child = spawn(
@@ -255,20 +361,27 @@ async function runSupabaseDbQuery(database, sqlPath) {
         [stderr, stdout].filter(Boolean).join(" | ") || `Exit-Code ${exitCode ?? "unbekannt"}${signal ? ` (${signal})` : ""}`,
         database,
       );
-      reject(new Error(`Postgres-Admin-Bereinigung fehlgeschlagen: ${detail || "unbekannter CLI-Fehler"}`));
+      reject(new Error(`${label} fehlgeschlagen: ${detail || "unbekannter CLI-Fehler"}`));
     });
   });
 }
 
-async function cleanupStagingAcceptanceData(database) {
+async function runAdminSql(database, sql, label) {
   const tempDirectory = await mkdtemp(join(tmpdir(), "wishlist-staging-acceptance-"));
-  const sqlPath = join(tempDirectory, "cleanup.sql");
+  const sqlPath = join(tempDirectory, "statement.sql");
   try {
-    await writeFile(sqlPath, cleanupSql, { encoding: "utf8", mode: 0o600, flag: "wx" });
-    await runSupabaseDbQuery(database, sqlPath);
+    await writeFile(sqlPath, sql, { encoding: "utf8", mode: 0o600, flag: "wx" });
+    await runSupabaseDbQuery(database, sqlPath, label);
   } finally {
     await rm(tempDirectory, { recursive: true, force: true });
   }
+}
+
+async function cleanupStagingAcceptanceData(database) {
+  // `supabase db query` sendet jede Datei als eine einzelne Anweisung; die
+  // beiden Aufräumblöcke laufen deshalb getrennt.
+  await runAdminSql(database, cleanupSql, "Postgres-Admin-Bereinigung");
+  await runAdminSql(database, matsFixtureCleanupSql, "Bereinigung der Legacy-Vorrichtung für Mats");
 }
 
 async function run() {
@@ -512,7 +625,32 @@ async function run() {
       "Der öffentliche Reservierungsstatus enthält einen bereits freigegebenen Wunsch.",
     );
 
-    console.log("Staging-Abnahmetest erfolgreich: Schema/RPCs, Mandantentrennung, öffentliche Lesestrecke und Reservierungsablauf bestätigt.");
+    // Legacy-Pfad für Mats: Wer sein Reservierungspasswort vergessen hat, wird
+    // von der Verwaltung freigegeben. Der Aufruf läuft bewusst über den
+    // Service-Role-Schlüssel, also genau über den Weg der Anwendungsroute.
+    await runAdminSql(configuration.database, matsFixtureSetupSql, "Legacy-Vorrichtung für Mats anlegen");
+
+    const releasedByAdmin = requireSuccess(
+      await admin.rpc("admin_release_mats_reservation_v1", { p_wish_id: matsFixtureWishId }),
+      "Reservierung über admin_release_mats_reservation_v1 aufheben",
+    );
+    assert(releasedByAdmin === true, "Die Verwaltung konnte eine offene Legacy-Reservierung nicht aufheben.");
+
+    const repeatedRelease = requireSuccess(
+      await admin.rpc("admin_release_mats_reservation_v1", { p_wish_id: matsFixtureWishId }),
+      "Aufheben ohne offene Reservierung wiederholen",
+    );
+    assert(repeatedRelease === false, "Das wiederholte Aufheben meldet fälschlich eine aufgehobene Reservierung.");
+
+    const foreignRelease = await admin.rpc("admin_release_mats_reservation_v1", { p_wish_id: wishA.wish_id });
+    assert(
+      foreignRelease.error?.code === "P0002",
+      "Die Legacy-Funktion griff auf einen Wunsch außerhalb der Mats-Liste zu.",
+    );
+
+    await runAdminSql(configuration.database, matsFixtureVerifySql, "Legacy-Vorrichtung für Mats prüfen und entfernen");
+
+    console.log("Staging-Abnahmetest erfolgreich: Schema/RPCs, Mandantentrennung, öffentliche Lesestrecke, Reservierungsablauf und Legacy-Freigabe für Mats bestätigt.");
   } catch (error) {
     primaryError = error instanceof Error ? error : new Error("Unbekannter Testfehler.");
   } finally {

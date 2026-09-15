@@ -27,10 +27,12 @@ export async function GET(request: Request) {
   const wishlistId = MATS_WISHLIST_ID;
   const [{ data: rows, error }, { data: reservations, error: reservationError }] = await Promise.all([
     supabase.from("wishes").select("id,title,description,product_url,image_url,price_amount,currency,shop_name,sort_order,archived_at").eq("wishlist_id", wishlistId).order("sort_order"),
-    supabase.from("reservations").select("wish_id").is("cancelled_at", null),
+    supabase.from("reservations").select("wish_id,guest_name,reserved_at").is("cancelled_at", null),
   ]);
   if (error || reservationError) return Response.json({ error: error?.message ?? reservationError?.message }, { status: 500 });
-  const reservedIds = new Set((reservations ?? []).map((row) => row.wish_id as string));
+  // Name und Zeitpunkt helfen der Verwaltung, eine Rückfrage der reservierenden
+  // Person zuzuordnen, bevor sie deren Reservierung aufhebt.
+  const openReservations = new Map((reservations ?? []).map((row) => [row.wish_id as string, row]));
   const wishes: AdminWish[] = (rows ?? []).map((row) => ({
     id: row.id as string,
     title: row.title as string,
@@ -42,7 +44,9 @@ export async function GET(request: Request) {
     shopName: (row.shop_name as string | null) ?? "Wunsch",
     sortOrder: Number(row.sort_order),
     archived: Boolean(row.archived_at),
-    reserved: reservedIds.has(row.id as string),
+    reserved: openReservations.has(row.id as string),
+    reservedBy: (openReservations.get(row.id as string)?.guest_name as string | null | undefined) ?? null,
+    reservedAt: (openReservations.get(row.id as string)?.reserved_at as string | null | undefined) ?? null,
   }));
   return Response.json({ wishes });
 }

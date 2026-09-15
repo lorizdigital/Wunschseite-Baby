@@ -22,6 +22,13 @@ function formatPrice(value: number | null, currency = "EUR") {
   return value === null ? "Preis offen" : new Intl.NumberFormat("de-DE", { style: "currency", currency }).format(value);
 }
 
+function formatReservationNote(wish: AdminWish) {
+  if (!wish.reserved) return "";
+  const guest = wish.reservedBy ? ` von ${wish.reservedBy}` : "";
+  const day = wish.reservedAt ? ` am ${new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "long", year: "numeric" }).format(new Date(wish.reservedAt))}` : "";
+  return ` · Reserviert${guest}${day}`;
+}
+
 function VisibilityIcon({ visible }: { visible: boolean }) {
   return visible
     ? <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 10.7a2 2 0 0 0 2.7 2.7M9.9 4.2A10.8 10.8 0 0 1 12 4c5.2 0 8.8 5.1 9.7 7.1a1.8 1.8 0 0 1 0 1.7 15.5 15.5 0 0 1-3.1 4.1M6.2 6.2A15.3 15.3 0 0 0 2.3 11a1.8 1.8 0 0 0 0 1.7C3.2 14.9 6.8 20 12 20a10.8 10.8 0 0 0 3.1-.5" /></svg>
@@ -143,6 +150,18 @@ export function WishManager() {
     finally { setPending(false); }
   }
 
+  async function releaseReservation(wish: AdminWish) {
+    const guest = wish.reservedBy ? ` von ${wish.reservedBy}` : "";
+    if (!window.confirm(`Reservierung${guest} für „${wish.title}“ wirklich aufheben? Der Wunsch ist danach wieder für alle reservierbar.`)) return;
+    setPending(true); setError("");
+    try {
+      const payload = await adminRequest(`/api/admin/wishes/${wish.id}/reservation`, { method: "DELETE" }) as { released?: boolean };
+      setMessage(payload.released ? "Die Reservierung wurde aufgehoben. Der Wunsch ist wieder frei." : "Für diesen Wunsch gab es keine offene Reservierung.");
+      await loadWishes(undefined, true);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Die Reservierung konnte nicht aufgehoben werden."); }
+    finally { setPending(false); }
+  }
+
   async function setArchived(wish: AdminWish, archivedValue: boolean) {
     if (archivedValue && !window.confirm(`„${wish.title}“ wirklich archivieren?`)) return;
     setPending(true); setError("");
@@ -168,7 +187,7 @@ export function WishManager() {
     </section>
 
     <section className="import-panel admin-wish-list"><div className="admin-section-head"><div><p className="eyebrow">Öffentliche Liste</p><h2>{active.length} aktive Wünsche</h2></div><button className="primary-button" disabled={!orderDirty || pending} onClick={saveOrder}>Reihenfolge speichern</button></div>
-      <div className="admin-items">{active.map((wish, index) => <article className="admin-item" key={wish.id}><div className="admin-item-image">{wish.imageUrl ? <img src={wish.imageUrl} alt="" /> : <span>–</span>}</div><div className="admin-item-copy"><strong>{wish.title}</strong><small>{wish.shopName} · {formatPrice(wish.priceAmount, wish.currency)}{wish.reserved ? " · Reserviert" : ""}</small></div><div className="admin-item-order"><button aria-label={`${wish.title} nach oben`} disabled={index === 0 || pending} onClick={() => move(wish.id, -1)}>↑</button><button aria-label={`${wish.title} nach unten`} disabled={index === active.length - 1 || pending} onClick={() => move(wish.id, 1)}>↓</button></div><div className="admin-item-actions"><button className="inline-button" onClick={() => startEdit(wish)}>Bearbeiten</button><button className="inline-button danger-text" disabled={wish.reserved || pending} title={wish.reserved ? "Reservierte Wünsche können nicht archiviert werden" : ""} onClick={() => setArchived(wish, true)}>Archivieren</button></div>{editingId === wish.id && <form className="admin-edit-form" onSubmit={saveEdit}><DraftFields value={editDraft} onChange={setEditDraft}/><div className="admin-form-actions"><button className="primary-button" disabled={pending}>Änderungen speichern</button><button className="secondary-button" type="button" onClick={() => setEditingId(null)}>Abbrechen</button></div></form>}</article>)}</div>
+      <div className="admin-items">{active.map((wish, index) => <article className="admin-item" key={wish.id}><div className="admin-item-image">{wish.imageUrl ? <img src={wish.imageUrl} alt="" /> : <span>–</span>}</div><div className="admin-item-copy"><strong>{wish.title}</strong><small>{wish.shopName} · {formatPrice(wish.priceAmount, wish.currency)}{formatReservationNote(wish)}</small></div><div className="admin-item-order"><button aria-label={`${wish.title} nach oben`} disabled={index === 0 || pending} onClick={() => move(wish.id, -1)}>↑</button><button aria-label={`${wish.title} nach unten`} disabled={index === active.length - 1 || pending} onClick={() => move(wish.id, 1)}>↓</button></div><div className="admin-item-actions"><button className="inline-button" onClick={() => startEdit(wish)}>Bearbeiten</button>{wish.reserved && <button className="inline-button" disabled={pending} title="Nur nutzen, wenn die reservierende Person ihr Passwort vergessen hat" onClick={() => void releaseReservation(wish)}>Reservierung aufheben</button>}<button className="inline-button danger-text" disabled={wish.reserved || pending} title={wish.reserved ? "Reservierte Wünsche können nicht archiviert werden" : ""} onClick={() => setArchived(wish, true)}>Archivieren</button></div>{editingId === wish.id && <form className="admin-edit-form" onSubmit={saveEdit}><DraftFields value={editDraft} onChange={setEditDraft}/><div className="admin-form-actions"><button className="primary-button" disabled={pending}>Änderungen speichern</button><button className="secondary-button" type="button" onClick={() => setEditingId(null)}>Abbrechen</button></div></form>}</article>)}</div>
     </section>
 
     <section className="import-panel"><p className="eyebrow">Code-Schutz</p><h2>Zugang für Mats festlegen</h2><p>Dieser Code schützt ausschließlich die Liste für Mats. Er ersetzt den bisherigen Code sofort; offene Browser-Freigaben verlieren dadurch ihre Gültigkeit.</p>
