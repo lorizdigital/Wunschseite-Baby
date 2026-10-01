@@ -1,12 +1,17 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "main": ".open-next/worker.js",
+  // worker.mjs bindet den OpenNext-Worker ein und ergänzt den Cron-Lauf.
+  "main": "worker.mjs",
   "name": "wuenschi",
   "compatibility_date": "2026-08-09",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
+  },
+  // Täglich 04:17 UTC: hält das Supabase-Projekt aktiv (Free-Tarif pausiert nach 7 Tagen).
+  "triggers": {
+    "crons": ["17 4 * * *"]
   },
   "observability": {
     "enabled": true

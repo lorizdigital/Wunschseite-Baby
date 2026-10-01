@@ -66,7 +66,7 @@ PRODUCT_IMPORT_ENABLED=false
 LEGACY_MATS_ADMIN_ENABLED=true
 ```
 
-`NEXT_PUBLIC_SUPABASE_URL` und `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` müssen bereits beim Cloudflare-Build vorhanden sein. Der Supabase-Secret-Key und alle übrigen Secrets dürfen nie mit `NEXT_PUBLIC_` beginnen.
+`NEXT_PUBLIC_SUPABASE_URL` und `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` müssen bereits beim Cloudflare-Build vorhanden sein. `NEXT_PUBLIC_SUPABASE_URL` sollte zusätzlich als Laufzeitvariable gesetzt sein: Der tägliche Cron-Lauf in `worker.mjs`, der das Supabase-Projekt vor der Pausierung im Free-Tarif schützt, liest sie dort. Alternativ genügt `INTERNAL_CRON_SECRET` als Laufzeit-Secret. Der Supabase-Secret-Key und alle übrigen Secrets dürfen nie mit `NEXT_PUBLIC_` beginnen.
 
 Für Produktion müssen URL, Publishable Key, serverseitiger Secret Key und `ADMIN_IMPORT_SECRET` aus dem Produktionsprojekt stammen. `APP_ORIGIN` ist `https://wünschi.de`; die Flags für den geschlossenen Start sind `MULTI_WISHLIST_ENABLED=true`, `SELF_SERVICE_SIGNUP_ENABLED=false`, `PUBLICATION_ENABLED=true`, `PRODUCT_IMPORT_ENABLED=false` und `LEGACY_MATS_ADMIN_ENABLED=true`.
 
