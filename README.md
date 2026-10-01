@@ -82,6 +82,8 @@ Die genaue Fingerprint- und Storage-Manifest-Erfassung ist in [docs/mats-baselin
 
 ## Tägliche Wartung
 
+**Datenbank aktiv halten.** Supabase pausiert Projekte im Free-Tarif nach sieben Tagen ohne Aktivität; danach scheitern Mats-Zugang, Reservierungen und Elternbereich, bis das Projekt im Dashboard wiederhergestellt wird. Der Worker enthält deshalb einen Cron Trigger (`wrangler.jsonc`, täglich 04:17 UTC), der in [worker.mjs](worker.mjs) eine minimale Leseabfrage ausführt. Bevorzugt fragt er Supabase direkt mit `NEXT_PUBLIC_SUPABASE_URL` und `SUPABASE_SECRET_KEY` ab; ist die URL nur als Build-Variable gesetzt, nutzt er `/api/internal/health` mit `INTERNAL_CRON_SECRET`. Fehlt beides zur Laufzeit, schlägt der Cron-Lauf sichtbar fehl (Cloudflare → Worker → Logs bzw. Cron-Ereignisse).
+
 Ein externer Scheduler muss täglich zwei interne, nicht öffentliche Endpunkte per `POST` mit `Authorization: Bearer $INTERNAL_CRON_SECRET` aufrufen:
 
 - `/api/internal/purge-expired-data` entfernt abgelaufene Betriebsdaten, fällige Listen und anschließend deren Produktbilder.

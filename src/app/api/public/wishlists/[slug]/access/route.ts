@@ -24,7 +24,8 @@ export async function POST(request: Request, { params }: RouteContext) {
   const accessVersion = await getPublicWishlistAccessVersion(publicSlug);
   if (!accessVersion) return redirect(request, publicSlug, "unavailable");
   const limit = await consumeRateLimit("public-wishlist-access", `${getRequestClientKey(request)}:${publicSlug}:${accessVersion}`, 8, 15 * 60);
-  if (limit !== true) return redirect(request, publicSlug, "rate");
+  if (limit === null) return redirect(request, publicSlug, "unavailable");
+  if (limit === false) return redirect(request, publicSlug, "rate");
 
   const accessCode = formData.get("accessCode");
   const grant = typeof accessCode === "string" ? await grantPublicWishlistAccess(publicSlug, accessCode) : null;
