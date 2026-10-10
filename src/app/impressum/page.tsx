@@ -22,6 +22,7 @@ export default function ImprintPage() {
           Wiesenweg 23<br />
           34379 Calden
         </address>
+        <p>Ein Projekt von <a href="https://loriz.digital">Loriz Digital</a></p>
       </section>
 
       <section>
@@ -30,6 +31,15 @@ export default function ImprintPage() {
           Telefon: <a href="tel:+491603329300">+49 160 3329300</a><br />
           E-Mail: <a href="mailto:hallo@loriz.digital">hallo@loriz.digital</a>
         </p>
+      </section>
+
+      <section>
+        <h2>Umsatzsteuer-Identifikationsnummer</h2>
+        <p>
+          Umsatzsteuer-Identifikationsnummer gemäß § 27a Umsatzsteuergesetz:<br />
+          DE464421526
+        </p>
+        <p>Diese Nummer ist zugleich die Wirtschafts-Identifikationsnummer nach § 139c Abgabenordnung.</p>
       </section>
 
       <section>

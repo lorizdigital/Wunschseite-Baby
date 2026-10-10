@@ -53,6 +53,7 @@ export default function Home() {
         <p>{PRODUCT_NAME}</p>
         <small>Private Wunschlisten · Für Familie und Freunde</small>
         <div className="footer-legal"><Link href="/impressum">Impressum</Link><Link href="/datenschutz">Datenschutz</Link></div>
+        <a className="footer-credit" href="https://loriz.digital" target="_blank" rel="noreferrer">Designed and developed by Loriz Digital</a>
       </footer>
     </main>
   );
