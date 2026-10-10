@@ -15,7 +15,9 @@ export async function POST(request: Request) {
   const accessVersion = await getMatsAccessVersion();
   if (!accessVersion) return redirect(request, "unavailable");
   const limit = await consumeRateLimit("mats-access", `${getRequestClientKey(request)}:${accessVersion}`, 8, 15 * 60);
-  if (limit !== true) return redirect(request, "rate");
+  // null bedeutet: Rate-Limit-Speicher (Supabase) nicht erreichbar, z. B. pausiertes Projekt.
+  if (limit === null) return redirect(request, "unavailable");
+  if (limit === false) return redirect(request, "rate");
 
   const accessCode = formData.get("accessCode");
   const grant = typeof accessCode === "string" ? await grantMatsAccess(accessCode) : null;

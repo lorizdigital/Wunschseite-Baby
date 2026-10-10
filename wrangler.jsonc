@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "main": ".open-next/worker.js",
+  "main": "worker.mjs",
   "name": "wuenschi",
   "workers_dev": false,
   "keep_vars": true,
@@ -42,6 +42,9 @@
       "PUBLIC_WISHLIST_ACCESS_SESSION_SECRET",
       "SUPABASE_SECRET_KEY"
     ]
+  },
+  "triggers": {
+    "crons": ["17 4 * * *"]
   },
   "observability": {
     "enabled": true
